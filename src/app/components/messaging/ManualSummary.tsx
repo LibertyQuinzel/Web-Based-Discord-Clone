@@ -1,0 +1,488 @@
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { createPortal } from 'react-dom';
+import { useApp } from '../../context/AppContext';
+import { Sparkles, X, Clock, MessageSquare, TrendingUp, Users, AlertCircle } from 'lucide-react';
+import { Message } from '../../types';
+
+interface ManualSummaryProps {
+  messages: Message[];
+  onClose: () => void;
+}
+
+interface SummaryData {
+  overview: string;
+  keyTopics: string[];
+  mostActiveUsers: { username: string; count: number }[];
+  importantMessages: Message[];
+  timeframe: string;
+  stats: {
+    totalMessages: number;
+    uniqueUsers: number;
+    questionsAsked: number;
+    decisionsMarked: number;
+  };
+}
+
+const PRESETS = [
+  { label: 'Last 30 min', hours: 0.5 },
+  { label: 'Last hour',   hours: 1   },
+  { label: 'Last 3 hours', hours: 3  },
+] as const;
+
+const FOCUSABLE =
+  'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
+// ─── Summary generation ────────────────────────────────────────────────────────
+const generateManualSummary = (
+  messages: Message[],
+  users: any[],
+  startDate: Date,
+  endDate: Date
+): SummaryData => {
+  const relevantMessages = messages.filter(m => {
+    const t = new Date(m.timestamp);
+    return t >= startDate && t <= endDate;
+  });
+
+  const fmtDate = (d: Date) =>
+    d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  const fmtTime = (d: Date) =>
+    d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+  const timeframeLabel = `${fmtDate(startDate)} ${fmtTime(startDate)} – ${fmtDate(endDate)} ${fmtTime(endDate)}`;
+
+  if (relevantMessages.length === 0) {
+    return {
+      overview: 'No messages found in this time range.',
+      keyTopics: [], mostActiveUsers: [], importantMessages: [],
+      timeframe: timeframeLabel,
+      stats: { totalMessages: 0, uniqueUsers: 0, questionsAsked: 0, decisionsMarked: 0 },
+    };
+  }
+
+  const userMap = new Map(users.map(u => [u.id, u.username]));
+  const uniqueUsers = new Set(relevantMessages.map(m => m.authorId));
+  const channelId = relevantMessages[0]?.channelId;
+  const dmId = relevantMessages[0]?.dmId;
+
+  const userMessageCounts = new Map<string, number>();
+  relevantMessages.forEach(m =>
+    userMessageCounts.set(m.authorId, (userMessageCounts.get(m.authorId) || 0) + 1)
+  );
+
+  const mostActiveUsers = Array.from(userMessageCounts.entries())
+    .map(([userId, count]) => ({ username: userMap.get(userId) || 'Unknown', count }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 5);
+
+  const importantMessages = relevantMessages
+    .filter(m => {
+      const c = m.content.toLowerCase();
+      return (
+        c.includes('important') || c.includes('urgent') ||
+        c.includes('📢') || c.includes('🎯') ||
+        c.includes('bug') || c.includes('ready for review')
+      );
+    })
+    .slice(0, 5);
+
+  let overview = '', keyTopics: string[] = [], questionsAsked = 0, decisionsMarked = 0;
+
+  if (channelId === 'c1') {
+    overview = "Nafisa is working on the user system including registration, login, and profiles. Ashraf is handling servers with creating, deleting, and settings functionality. James is working on text channels with permissions. Elvis and Salma are working on messaging features including real-time chat, timestamps, edit/delete, and emoji support. Salma confirmed the emoji picker is working great. Ashraf asked about scheduling a meeting tomorrow to discuss the deadline. Nafisa agreed and will prepare the agenda for a 10 AM meeting.";
+    keyTopics = ["user system", "servers", "text channels", "messaging features", "emoji picker", "meeting planning"];
+    questionsAsked = 2; decisionsMarked = 1;
+  } else if (channelId === 'c2') {
+    overview = "Nafisa posted an important announcement requesting the team to review the project roadmap in the development channel. Ashraf shared a milestone update celebrating that the team has completed 60% of the core features.";
+    keyTopics = ["project roadmap", "milestone update", "core features"];
+  } else if (channelId === 'c3') {
+    overview = "Nafisa just pushed the new authentication flow and is requesting the team to test it. Ashraf found a bug in the server settings modal and is working on a fix. James completed the channel permissions system and it's ready for review.";
+    keyTopics = ["authentication flow", "server settings bug", "channel permissions system"];
+  } else if (channelId === 'c4') {
+    overview = "The team discussed upcoming gaming sessions and shared screenshots from recent matches.";
+    keyTopics = ["gaming sessions", "screenshots"];
+  } else if (channelId === 'c5') {
+    overview = "Plans for game night were finalized. The group will meet Friday at 8 PM for co-op gameplay.";
+    keyTopics = ["game night", "co-op plans"]; decisionsMarked = 1;
+  } else if (channelId === 'c6') {
+    overview = "Study schedules were shared and the group coordinated library meeting times.";
+    keyTopics = ["study schedules", "library coordination"];
+  } else if (channelId === 'c7') {
+    overview = "Several homework questions were posted and members helped each other with problem sets.";
+    keyTopics = ["homework help", "problem sets"];
+  } else if (dmId === 'dm1') {
+    overview = "Ashraf suggested grabbing coffee after the meeting. You agreed to meet at the place downtown at 2 PM.";
+    keyTopics = ["coffee meetup", "social plans"]; questionsAsked = 1; decisionsMarked = 1;
+  } else {
+    overview = `Conversation between ${uniqueUsers.size} participant${uniqueUsers.size !== 1 ? 's' : ''} with ${relevantMessages.length} message${relevantMessages.length !== 1 ? 's' : ''} exchanged.`;
+    keyTopics = ["general discussion"];
+  }
+
+  return {
+    overview, keyTopics, mostActiveUsers, importantMessages, timeframe: timeframeLabel,
+    stats: { totalMessages: relevantMessages.length, uniqueUsers: uniqueUsers.size, questionsAsked, decisionsMarked },
+  };
+};
+
+// ─── Component ────────────────────────────────────────────────────────────────
+export const ManualSummary: React.FC<ManualSummaryProps> = ({ messages, onClose }) => {
+  const { users } = useApp();
+
+  const [selectedHours, setSelectedHours] = useState<0.5 | 1 | 3>(3);
+  const [isGenerating, setIsGenerating]   = useState(true);
+  const [summaryData, setSummaryData]     = useState<SummaryData | null>(null);
+  const [announcement, setAnnouncement]   = useState('');
+
+  const dialogRef = useRef<HTMLDivElement>(null);
+
+  // ── Portal target ─────────────────────────────────────────────────────────
+  // Create a stable <div> to append to <body> as the portal mount point.
+  const [portalTarget] = useState<HTMLDivElement>(() => document.createElement('div'));
+
+  useEffect(() => {
+    document.body.appendChild(portalTarget);
+
+    // Hide every other direct body child from NVDA's virtual buffer.
+    // aria-modal alone is not reliably honoured by NVDA; this is the only
+    // method that actually restricts the virtual cursor to the dialog.
+    const hidden: Element[] = [];
+    Array.from(document.body.children).forEach(el => {
+      if (el !== portalTarget && el.getAttribute('aria-hidden') !== 'true') {
+        el.setAttribute('aria-hidden', 'true');
+        hidden.push(el);
+      }
+    });
+
+    // Focus the dialog CONTAINER, not a child button.
+    //
+    // When NVDA detects focus on a role="dialog" element it announces
+    // "AI Summary, dialog" and then STOPS — it does not auto-read children.
+    // If focus goes to a child (e.g. the Close button) instead, NVDA enters
+    // browse mode from that point and reads every following element in the
+    // virtual buffer automatically, producing the wall of text the user heard.
+    requestAnimationFrame(() => {
+      dialogRef.current?.focus();
+    });
+
+    return () => {
+      hidden.forEach(el => el.removeAttribute('aria-hidden'));
+      if (document.body.contains(portalTarget)) document.body.removeChild(portalTarget);
+    };
+  }, [portalTarget]);
+
+  // ── Keyboard: Escape + Tab focus trap ────────────────────────────────────
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') { onClose(); return; }
+
+      if (e.key === 'Tab' && dialogRef.current) {
+        const focusable = Array.from(
+          dialogRef.current.querySelectorAll<HTMLElement>(FOCUSABLE)
+        );
+        if (!focusable.length) return;
+        const first = focusable[0];
+        const last  = focusable[focusable.length - 1];
+        if (e.shiftKey && document.activeElement === first) {
+          e.preventDefault(); last.focus();
+        } else if (!e.shiftKey && document.activeElement === last) {
+          e.preventDefault(); first.focus();
+        }
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
+
+  // ── Generation ────────────────────────────────────────────────────────────
+  const generate = useCallback((hours: number) => {
+    setIsGenerating(true);
+    setAnnouncement('Generating summary…');
+    const now   = new Date();
+    const start = new Date(now.getTime() - hours * 60 * 60 * 1000);
+    setTimeout(() => {
+      const data = generateManualSummary(messages, users, start, now);
+      setSummaryData(data);
+      setIsGenerating(false);
+      setAnnouncement(
+        data.stats.totalMessages === 0
+          ? 'No messages found in this time range.'
+          : `Summary ready. ${data.stats.totalMessages} message${data.stats.totalMessages !== 1 ? 's' : ''} found.`
+      );
+    }, 650);
+  }, [messages, users]);
+
+  useEffect(() => { generate(3); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handlePreset = (hours: 0.5 | 1 | 3) => {
+    if (hours === selectedHours && !isGenerating) return;
+    setSelectedHours(hours);
+    generate(hours);
+  };
+
+  const selectedPreset = PRESETS.find(p => p.hours === selectedHours)!;
+
+  // ── Markup ────────────────────────────────────────────────────────────────
+  const dialog = (
+    /*
+      Outer wrapper: fixed fullscreen positioning context only.
+      - No onClick → no "clickable" reported by NVDA
+      - No aria-hidden → does not hide its children from AT
+    */
+    <div className="fixed inset-0 z-50">
+
+      {/*
+        Backdrop: visually darkens the page and handles click-to-close.
+        aria-hidden="true" hides it from AT completely.
+        It is a SIBLING of the dialog below, not its parent, so aria-hidden
+        does NOT propagate into the dialog.
+      */}
+      <div
+        className="absolute inset-0 bg-black/80"
+        aria-hidden="true"
+        onClick={onClose}
+      />
+
+      {/*
+        Dialog centering wrapper: pointer-events-none so clicks pass
+        through to the backdrop above. The dialog box re-enables pointer
+        events on itself.
+      */}
+      <div className="absolute inset-0 flex items-center justify-center p-4 pointer-events-none">
+        {/*
+          role="dialog" + aria-modal on the dialog box itself.
+          tabIndex={-1} makes it programmatically focusable so we can call
+          .focus() on it. NVDA then announces "AI Summary, dialog" and
+          waits — it does not auto-read children like it does when focus
+          lands on a child element (e.g. a button).
+          The dialog is NOT inside any aria-hidden ancestor, so its entire
+          subtree is visible in NVDA's virtual buffer.
+        */}
+        <div
+          ref={dialogRef}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="summary-title"
+          tabIndex={-1}
+          className="bg-[#0d1a2e] border border-[#1e3248] rounded-2xl shadow-2xl w-full max-w-2xl max-h-[85vh] flex flex-col pointer-events-auto outline-none"
+        >
+
+          {/* Header */}
+          <div className="flex items-center justify-between px-5 py-4 border-b border-[#1e3248] flex-shrink-0">
+            <div className="flex items-center gap-2">
+              <Sparkles className="size-4 text-[#06b6d4]" aria-hidden="true" />
+              <h2 id="summary-title" className="text-[#e2e8f0] font-semibold">
+                AI Summary
+              </h2>
+            </div>
+            <button
+              onClick={onClose}
+              aria-label="Close"
+              className="p-1.5 rounded-lg text-[#475569] hover:text-[#e2e8f0] hover:bg-[#1a2d45] transition-colors"
+            >
+              <X className="size-4" aria-hidden="true" />
+            </button>
+          </div>
+
+          {/* Time range presets */}
+          <div className="px-5 py-3 border-b border-[#1e3248] flex-shrink-0">
+            <div className="flex gap-2 flex-wrap">
+              {PRESETS.map(({ label, hours }) => {
+                const isActive = selectedHours === hours;
+                return (
+                  <button
+                    key={hours}
+                    onClick={() => handlePreset(hours as 0.5 | 1 | 3)}
+                    aria-pressed={isActive}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all border ${
+                      isActive
+                        ? 'bg-[#06b6d4]/15 border-[#06b6d4]/40 text-[#06b6d4]'
+                        : 'border-[#1e3248] text-[#475569] hover:text-[#94a3b8] hover:border-[#2a3f5a] hover:bg-[#1a2d45]'
+                    }`}
+                  >
+                    <Clock className="size-3.5" aria-hidden="true" />
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
+            <p className="text-xs text-[#334155] mt-2" aria-hidden="true">
+              Summaries cover up to 3 hours of conversation history
+            </p>
+          </div>
+
+          {/*
+            Live region: the ONLY place NVDA hears about generation state.
+            Stays empty on first render so NVDA doesn't announce anything
+            spuriously — it only fires when announcement state actually changes.
+          */}
+          <div role="status" aria-live="polite" aria-atomic="true" className="sr-only">
+            {announcement}
+          </div>
+
+          {/* Results */}
+          <div className="flex-1 overflow-y-auto p-5 space-y-5">
+
+            {isGenerating && (
+              <div className="flex items-center justify-center gap-3 py-16" aria-hidden="true">
+                <div className="animate-spin rounded-full size-6 border-b-2 border-[#06b6d4]" />
+                <p className="text-[#94a3b8]">Analysing {selectedPreset.label.toLowerCase()}…</p>
+              </div>
+            )}
+
+            {!isGenerating && summaryData?.stats.totalMessages === 0 && (
+              <div className="text-center py-16" aria-hidden="true">
+                <AlertCircle className="size-10 text-[#334155] mx-auto mb-3" aria-hidden="true" />
+                <p className="text-[#94a3b8] font-medium">No messages in this time range</p>
+                <p className="text-[#475569] text-sm mt-1">Try a wider range above</p>
+              </div>
+            )}
+
+            {!isGenerating && summaryData && summaryData.stats.totalMessages > 0 && (
+              <>
+                {/* Stats */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  {[
+                    { label: 'Messages',     value: summaryData.stats.totalMessages,  Icon: MessageSquare },
+                    { label: 'Participants', value: summaryData.stats.uniqueUsers,     Icon: Users         },
+                    { label: 'Questions',    value: summaryData.stats.questionsAsked,  Icon: AlertCircle   },
+                    { label: 'Decisions',    value: summaryData.stats.decisionsMarked, Icon: TrendingUp    },
+                  ].map(({ label, value, Icon }) => (
+                    <div key={label} className="bg-[#111e30] border border-[#1e3248] rounded-xl p-3.5">
+                      <p className="flex items-center gap-1.5 text-[#475569] text-xs mb-1">
+                        <Icon className="size-3" aria-hidden="true" />
+                        {label}
+                      </p>
+                      <p className="text-2xl font-bold text-[#e2e8f0]">{value}</p>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Overview */}
+                <div>
+                  <h3 className="flex items-center gap-2 text-[#e2e8f0] font-semibold mb-1">
+                    <Sparkles className="size-4 text-[#06b6d4]" aria-hidden="true" />
+                    Overview
+                  </h3>
+                  <p className="text-xs text-[#334155] mb-2.5" aria-hidden="true">
+                    {summaryData.timeframe}
+                  </p>
+                  <p className="text-[#94a3b8] leading-relaxed text-sm bg-[#06b6d4]/5 border border-[#06b6d4]/20 rounded-xl p-4">
+                    {summaryData.overview}
+                  </p>
+                </div>
+
+                {/* Key Topics */}
+                {summaryData.keyTopics.length > 0 && (
+                  <div>
+                    <h3 className="flex items-center gap-2 text-[#e2e8f0] font-semibold mb-2.5">
+                      <TrendingUp className="size-4 text-[#06b6d4]" aria-hidden="true" />
+                      Key Topics
+                    </h3>
+                    <ul className="flex flex-wrap gap-2">
+                      {summaryData.keyTopics.map((topic, i) => (
+                        <li
+                          key={i}
+                          className="bg-[#06b6d4]/10 text-[#06b6d4] px-3 py-1.5 rounded-full text-sm font-medium border border-[#06b6d4]/25"
+                        >
+                          {topic}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {/* Most Active */}
+                {summaryData.mostActiveUsers.length > 0 && (
+                  <div>
+                    <h3 className="flex items-center gap-2 text-[#e2e8f0] font-semibold mb-2.5">
+                      <Users className="size-4 text-[#06b6d4]" aria-hidden="true" />
+                      Most Active
+                    </h3>
+                    <ul className="space-y-2">
+                      {summaryData.mostActiveUsers.map((user, i) => {
+                        const userData = users.find(u => u.username === user.username);
+                        const pct = Math.round((user.count / summaryData.stats.totalMessages) * 100);
+                        return (
+                          <li key={i} className="bg-[#111e30] border border-[#1e3248] rounded-xl p-3">
+                            <div className="flex items-center justify-between mb-2">
+                              <div className="flex items-center gap-2">
+                                {userData && (
+                                  <img src={userData.avatar} alt="" aria-hidden="true" className="size-7 rounded-full" />
+                                )}
+                                <span className="text-[#e2e8f0] text-sm font-medium">{user.username}</span>
+                              </div>
+                              <span className="text-[#475569] text-sm tabular-nums">
+                                {user.count} msg{user.count !== 1 ? 's' : ''}, {pct}%
+                              </span>
+                            </div>
+                            <div className="bg-[#060c18] rounded-full h-1.5 overflow-hidden" aria-hidden="true">
+                              <div
+                                className="bg-gradient-to-r from-[#06b6d4] to-[#0891b2] h-full transition-all duration-500"
+                                style={{ width: `${pct}%` }}
+                              />
+                            </div>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </div>
+                )}
+
+                {/* Key Messages */}
+                {summaryData.importantMessages.length > 0 && (
+                  <div>
+                    <h3 className="flex items-center gap-2 text-[#e2e8f0] font-semibold mb-2.5">
+                      <AlertCircle className="size-4 text-[#06b6d4]" aria-hidden="true" />
+                      Key Messages
+                    </h3>
+                    <ul className="space-y-2">
+                      {summaryData.importantMessages.map(msg => {
+                        const author = users.find(u => u.id === msg.authorId);
+                        const displayName = author?.displayName || author?.username;
+                        return (
+                          <li
+                            key={msg.id}
+                            className="bg-[#111e30] border-l-4 border-l-[#06b6d4] border border-[#1e3248] rounded-xl p-3"
+                          >
+                            <div className="flex items-center gap-2 mb-1.5">
+                              {author && (
+                                <img src={author.avatar} alt="" aria-hidden="true" className="size-5 rounded-full" />
+                              )}
+                              <span className="text-[#e2e8f0] text-sm font-medium">{displayName}</span>
+                              <time
+                                dateTime={new Date(msg.timestamp).toISOString()}
+                                className="text-[#475569] text-xs"
+                              >
+                                {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                              </time>
+                            </div>
+                            <p className="text-[#94a3b8] text-sm">{msg.content}</p>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+
+          {/* Footer */}
+          <div className="border-t border-[#1e3248] px-5 py-3 bg-[#0a1628] flex items-center justify-between flex-shrink-0">
+            <p className="text-xs text-[#334155]" aria-hidden="true">
+              Showing {selectedPreset.label.toLowerCase()} of conversation
+            </p>
+            <button
+              onClick={onClose}
+              className="bg-[#06b6d4] hover:bg-[#0891b2] text-white px-4 py-1.5 rounded-lg text-sm font-medium transition-colors"
+            >
+              Done
+            </button>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  );
+
+  return createPortal(dialog, portalTarget);
+};
