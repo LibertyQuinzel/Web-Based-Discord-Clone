@@ -1,0 +1,81 @@
+graph TB
+    subgraph "Client Layer"
+        WEB[React Frontend<br/>React 18 + TypeScript]
+        MOBILE[Mobile App<br/>Future - React Native]
+    end
+    
+    subgraph "API Gateway Layer"
+        GATEWAY[API Gateway<br/>Express.js + JWT]
+        AUTH[Authentication Service<br/>JWT Validation]
+        RATE[Rate Limiting<br/>Redis-based]
+    end
+    
+    subgraph "Core Services"
+        USER[User Service<br/>Auth + Profiles]
+        SERVER[Server Service<br/>Server Management]
+        CHANNEL[Channel Service<br/>Channel Operations]
+        MESSAGE[Message Service<br/>Message Storage]
+        SEARCH[Search Service<br/>Full-text Search]
+    end
+    
+    subgraph "Feature Services"
+        SUMMARY[Summary Service<br/>Manual Summaries]
+        PREVIEW[Preview Service<br/>Auto Previews]
+        NOTIFICATION[Notification Service<br/>Real-time Updates]
+    end
+    
+    subgraph "Infrastructure"
+        DB[(PostgreSQL<br/>Primary + Replica)]
+        CACHE[(Redis Cluster<br/>Multi-layer Caching)]
+        QUEUE[Message Queue<br/>Bull Queue]
+        LLM[LLM Provider<br/>OpenAI API]
+    end
+    
+    %% Client connections
+    WEB --> GATEWAY
+    MOBILE --> GATEWAY
+    
+    %% Gateway internal routing
+    GATEWAY --> AUTH
+    GATEWAY --> RATE
+    
+    %% Service routing
+    AUTH --> USER
+    GATEWAY --> USER
+    GATEWAY --> SERVER
+    GATEWAY --> CHANNEL
+    GATEWAY --> MESSAGE
+    GATEWAY --> SEARCH
+    
+    %% Feature service dependencies
+    SUMMARY --> MESSAGE
+    SUMMARY --> LLM
+    PREVIEW --> MESSAGE
+    PREVIEW --> SUMMARY
+    
+    %% Database connections
+    USER --> DB
+    SERVER --> DB
+    CHANNEL --> DB
+    MESSAGE --> DB
+    
+    %% Cache connections
+    SEARCH --> CACHE
+    SUMMARY --> CACHE
+    PREVIEW --> CACHE
+    
+    %% Queue connections
+    NOTIFICATION --> QUEUE
+    
+    %% Styling
+    classDef client fill:#e1f5fe,stroke:#01579b,stroke-width:2px
+    classDef gateway fill:#f3e5f5,stroke:#4a148c,stroke-width:2px
+    classDef core fill:#e8f5e8,stroke:#1b5e20,stroke-width:2px
+    classDef feature fill:#fff3e0,stroke:#e65100,stroke-width:2px
+    classDef infra fill:#fce4ec,stroke:#880e4f,stroke-width:2px
+    
+    class WEB,MOBILE client
+    class GATEWAY,AUTH,RATE gateway
+    class USER,SERVER,CHANNEL,MESSAGE,SEARCH core
+    class SUMMARY,PREVIEW,NOTIFICATION feature
+    class DB,CACHE,QUEUE,LLM infra
