@@ -3,7 +3,34 @@ import { LoginForm } from './components/auth/LoginForm';
 import { RegisterForm } from './components/auth/RegisterForm';
 import { MainLayout } from './pages/MainLayout';
 import MockupsPage from './pages/MockupsPage';
-import { AppProvider } from './context/AppContext';
+import { AppProvider, useApp } from './context/AppContext';
+
+// Loading component
+function LoadingPage() {
+  return (
+    <div className="h-screen flex items-center justify-center bg-[#060c18]">
+      <div className="text-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#06b6d4] mx-auto mb-4"></div>
+        <p className="text-[#e2e8f0]">Loading...</p>
+      </div>
+    </div>
+  );
+}
+
+// Protected route wrapper
+function ProtectedRoute({ children }: { children: React.ReactNode }) {
+  const { currentUser, isLoading } = useApp();
+  
+  if (isLoading) {
+    return <LoadingPage />;
+  }
+  
+  if (!currentUser) {
+    return <LoginForm />;
+  }
+  
+  return <>{children}</>;
+}
 
 // Wrapper component to provide context to all routes
 function RootLayout() {
@@ -51,11 +78,11 @@ export const router = createBrowserRouter([
       },
       {
         path: '/channels',
-        element: <MainLayout />,
+        element: <ProtectedRoute><MainLayout /></ProtectedRoute>,
       },
       {
         path: '/mockups',
-        element: <MockupsPage />,
+        element: <ProtectedRoute><MockupsPage /></ProtectedRoute>,
       },
       {
         path: '*',

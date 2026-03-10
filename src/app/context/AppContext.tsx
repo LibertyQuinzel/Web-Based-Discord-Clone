@@ -1,5 +1,6 @@
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { User, Server, Channel, Message, FriendRequest, DirectMessage, ServerInvite } from '../types';
+import { apiService } from '../services/apiService';
 
 // Utility function to create relative timestamps
 const getRelativeTime = (minutesAgo: number): Date => {
@@ -226,8 +227,9 @@ interface AppContextType {
   selectedDM: DirectMessage | null;
   lastReadMessages: Record<string, Date>;
   replyingTo: Message | null;
-  login: (email: string, password: string) => boolean;
-  register: (username: string, email: string, password: string) => boolean;
+  isLoading: boolean;
+  login: (email: string, password: string) => Promise<boolean>;
+  register: (username: string, email: string, password: string) => Promise<boolean>;
   logout: () => void;
   setSelectedServer: (server: Server | null) => void;
   setSelectedChannel: (channel: Channel | null) => void;
@@ -292,41 +294,36 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     'dm1': getRelativeTime(61), // DM with Ashraf
   });
   const [replyingTo, setReplyingTo] = useState<Message | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const login = (email: string, password: string): boolean => {
-    const user = users.find((u) => u.email === email);
-    if (user) {
-      setCurrentUser(user);
-      return true;
-    }
-    return false;
-  };
-
-  const register = (username: string, email: string, password: string): boolean => {
-    const exists = users.find((u) => u.email === email);
-    if (exists) return false;
-
-    const newUser: User = {
-      id: String(users.length + 1),
-      username,
-      email,
-      avatar: `https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&h=150&fit=crop`,
-      status: 'online',
+  // Check for existing authentication on app load
+  useEffect(() => {
+    const checkAuth = async () => {
+      if (apiService.isAuthenticated()) {
+        try {
+          const response = await apiService.getCurrentUser();
+          if (response.success && response.data) {
+            const user: User = {
+              id: response.data.user.id,
+              username: response.data.user.username,
+              email: response.data.user.email,
+              avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&h=150&fit=crop',
+              status: 'online',
+            };
+            setCurrentUser(user);
+          }
+        } catch (error) {
+          console.error('Failed to restore authentication:', error);
+          apiService.logout();
+        }
+      }
+      setIsLoading(false);
     };
-    setUsers([...users, newUser]);
-    setCurrentUser(newUser);
-    return true;
-  };
 
-  const logout = () => {
-    setCurrentUser(null);
-    setSelectedServer(null);
-    setSelectedChannel(null);
-    setSelectedDM(null);
-  };
+    checkAuth();
+  }, []);
 
   const createServer = (name: string, icon: string) => {
-    if (!currentUser) return;
     const newServer: Server = {
       id: `s${servers.length + 1}`,
       name,
@@ -640,54 +637,100 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     return unread;
   };
 
+  // Authentication functions
+  const login = async (email: string, password: string): Promise<boolean> => {
+    try {
+      const response = await apiService.login(email, password);
+      const user: User = {
+        id: response.user.id,
+        username: response.user.username,
+        email: response.user.email,
+        avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&h=150&fit=crop',
+        status: 'online',
+      };
+      setCurrentUser(user);
+      return true;
+    } catch (error) {
+      console.error('Login failed:', error);
+      return false;
+    }
+  };
+
+  const register = async (username: string, email: string, password: string): Promise<boolean> => {
+    try {
+      const response = await apiService.register(username, email, password);
+      const user: User = {
+        id: response.user.id,
+        username: response.user.username,
+        email: response.user.email,
+        avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&h=150&fit=crop',
+        status: 'online',
+      };
+      setCurrentUser(user);
+      return true;
+    } catch (error) {
+      console.error('Registration failed:', error);
+      return false;
+    }
+  };
+
+  const logout = () => {
+    apiService.logout();
+    setCurrentUser(null);
+    setSelectedServer(null);
+    setSelectedChannel(null);
+    setSelectedDM(null);
+  };
+
   return (
-    <AppContext.Provider
-      value={{
-        currentUser,
-        users,
-        servers,
-        channels,
-        messages,
-        friendRequests,
-        directMessages,
-        serverInvites,
-        selectedServer,
-        selectedChannel,
-        selectedDM,
-        lastReadMessages,
-        replyingTo,
-        login,
-        register,
-        logout,
-        setSelectedServer,
-        setSelectedChannel,
-        setSelectedDM,
-        createServer,
-        deleteServer,
-        updateServerSettings,
-        sendServerInvite,
-        acceptServerInvite,
-        declineServerInvite,
-        createChannel,
-        sendMessage,
-        editMessage,
-        deleteMessage,
-        toggleReaction,
-        sendFriendRequest,
-        acceptFriendRequest,
-        rejectFriendRequest,
-        getFriends,
-        createDirectMessage,
-        updateUserStatus,
-        updateUserProfile,
-        markAsRead,
-        getUnreadCount,
-        getUnreadMessages,
-        setReplyingTo,
-      }}
-    >
-      {children}
-    </AppContext.Provider>
+  <AppContext.Provider
+    value={{
+      currentUser,
+      users,
+      servers,
+      channels,
+      messages,
+      friendRequests,
+      directMessages,
+      serverInvites,
+      selectedServer,
+      selectedChannel,
+      selectedDM,
+      lastReadMessages,
+      replyingTo,
+      isLoading,
+      login,
+      register,
+      logout,
+      setSelectedServer,
+      setSelectedChannel,
+      setSelectedDM,
+      createServer,
+      deleteServer,
+      updateServerSettings,
+      sendServerInvite,
+      acceptServerInvite,
+      declineServerInvite,
+      createChannel,
+      sendMessage,
+      editMessage,
+      deleteMessage,
+      toggleReaction,
+      sendFriendRequest,
+      acceptFriendRequest,
+      rejectFriendRequest,
+      getFriends,
+      createDirectMessage,
+      updateUserStatus,
+      updateUserProfile,
+      markAsRead,
+      getUnreadCount,
+      getUnreadMessages,
+      setReplyingTo,
+    }}
+  >
+    {children}
+  </AppContext.Provider>
   );
 };
 

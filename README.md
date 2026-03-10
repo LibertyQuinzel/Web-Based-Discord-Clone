@@ -1,137 +1,118 @@
-# Anaphor
+# Discord Clone
 
-A web-based Discord-inspired communication app with AI-powered conversation summaries. Built with React, Vite, and TypeScript.
+A web-based Discord-inspired communication app. Ready to run with Docker - no setup required!
 
-## Overview
+## **Quick Start**
 
-Anaphor is a modern chat application that reimagines team communication with a distinct design philosophy. It uses **Spaces** (instead of servers), **Rooms** (instead of channels), and features AI-assisted summarization to help users catch up on conversations quickly.
+**Get the app running in one command:**
 
-## Features
+1. **Clone the repository:**
+   ```bash
+   git clone <repository-url>
+   cd Web-Based-Discord-Clone
+   ```
 
-### Core Features
+2. **Start the application:**
+   ```bash
+   docker-compose up --build
+   ```
 
-| Feature | Description |
-|---------|-------------|
-| **Authentication** | Login and registration flows |
-| **Spaces** | Create, join, and manage Spaces (Discord-style servers) |
-| **Rooms** | Text channels within Spaces |
-| **Direct Messages** | One-on-one conversations |
-| **Messaging** | Send messages with @mentions, replies, emoji reactions |
-| **Friends** | Add friends, manage friend requests, view online status |
-| **Member List** | View Space members with status indicators |
+3. **Open your browser and go to:**
+   - **Frontend App**: http://localhost:5173
 
-### AI-Powered Features
+That's it! The app is now running and ready to use.
 
-| Feature | Scope | Dependencies |
-|---------|-------|--------------|
-| **Manual AI Summary** | Independent (core user story) | None — trigger via Sparkles button in MessageInput toolbar |
-| **What You Missed** | Dependent | Uses same summary logic as Manual AI Summary; auto-triggered when unread messages exist |
-| **Server Search** | Independent (additional) | None — search bar in mobile sub-strip and desktop left sidebar |
+## **How to Stop**
 
-### Feature Dependency Diagram
-
-```
-Manual AI Summary (independent)
-    └── What You Missed (dependent — reuses summary logic, auto-triggered on unread)
-
-Server Search (independent)
-```
-
-- **Manual AI Summary**: Portal-rendered modal for user-selected time windows. States: loading, empty range, success, error.
-- **What You Missed**: Collapsible banner at top of message list when there are unread messages. Includes jump-to-unread and dismiss.
-- **Server Search**: Real-time overlay filtering joined Spaces by name. States: idle, loading, results, no results, error.
-
-## Tech Stack
-
-- **Framework**: React 18
-- **Build**: Vite 6
-- **Language**: TypeScript
-- **Styling**: Tailwind CSS 4
-- **UI Components**: Radix UI, MUI
-- **Routing**: React Router 7
-- **Package Manager**: pnpm
-
-## Getting Started
-
-### Prerequisites
-
-- Node.js 18+
-- pnpm
-
-### Installation
-
+When you're done using the app:
 ```bash
-pnpm install
+docker-compose down
 ```
 
-### Development
+## **What You Get**
 
+| Service | What it is | How to access |
+|---------|------------|---------------|
+| **Discord App** | The main chat application | http://localhost:5173 |
+| **Backend API** | Powers the app features | http://localhost:3001 |
+| **Database** | Stores all your data | Runs automatically |
+
+## **Features**
+
+### **Core Chat Features**
+- **Spaces** - Create and join communities (like Discord servers)
+- **Rooms** - Text channels for different topics
+- **Direct Messages** - Private one-on-one conversations
+- **Real-time Messaging** - Instant message delivery
+- **@mentions** - Notify specific users
+- **Emoji Reactions** - React to messages with emojis
+
+### **User Features**
+- **Authentication** - Secure login and registration
+- **Friends List** - Add and manage friends
+- **Online Status** - See who's online
+- **Member Lists** - View everyone in your spaces
+
+### **AI-Powered Features**
+- **Manual AI Summary** - Get AI-generated summaries of conversations
+- **What You Missed** - Automatic catch-up when you return
+- **Search** - Find messages and content quickly
+
+## **System Requirements**
+
+- **Docker** - Download from [docker.com](https://docker.com)
+- **Docker Compose** - Usually included with Docker
+
+That's all you need! No Node.js, no database setup, no configuration.
+
+## **Accessing the App**
+
+Once running, simply open your web browser and navigate to:
+
+**http://localhost:5173**
+
+The app will load and you can start using it immediately!
+
+## **Troubleshooting**
+
+### **"Port already in use" error:**
 ```bash
-pnpm dev
+# Stop other services using ports 5173, 3001, or 5432
+# Then try again:
+docker-compose up --build
 ```
 
-Runs the app at `http://localhost:5173` (or the next available port).
-
-### Build
-
+### **App won't load:**
 ```bash
-pnpm build
+# Check if services are running:
+docker-compose ps
+
+# Restart everything:
+docker-compose down
+docker-compose up --build
 ```
 
-### Preview Production Build
-
+### **Something went wrong:**
 ```bash
-pnpm preview
+# Clean start (removes all data):
+docker-compose down -v
+docker-compose up --build
 ```
 
-## Project Structure
+## **Project Overview**
 
-```
-src/
-├── app/
-│   ├── components/
-│   │   ├── auth/          # LoginForm, RegisterForm
-│   │   ├── channel/       # ChannelList, CreateChannelDialog
-│   │   ├── messaging/     # MessageArea, MessageInput, MessageItem,
-│   │   │                  # WhatYouMissed, ManualSummary, CustomEmojiPicker
-│   │   ├── search/        # ServerSearch
-│   │   ├── server/        # ServerList, CreateServerDialog, MemberList,
-│   │   │                  # ServerSettings, InvitePeopleDialog
-│   │   ├── user/          # UserSidebar, UserProfile, FriendsList,
-│   │   │                  # AddFriendDialog, DMList
-│   │   └── ui/            # shadcn-style primitives
-│   ├── context/           # AppContext (mock data + state)
-│   ├── pages/             # MainLayout, MockupsPage
-│   ├── types.ts           # User, Server, Channel, Message, etc.
-│   ├── routes.tsx
-│   └── App.tsx
-├── styles/
-└── main.tsx
-```
+This is a complete Discord-like chat application that runs entirely in Docker. It includes:
 
-## Routes
+- **Frontend**: Modern React interface with Tailwind CSS
+- **Backend**: Express.js API server
+- **Database**: PostgreSQL for data storage
+- **AI Features**: Conversation summaries and smart search
 
-| Path | Description |
-|------|-------------|
-| `/` | Login (default) |
-| `/login` | Login |
-| `/register` | Registration |
-| `/channels` | Main app — Spaces, Rooms, DMs, messaging |
-| `/mockups` | Design spec mockups (Server Search, What You Missed, Manual AI Summary) |
-| `*` | Fallback to Login |
+The app is designed to be a drop-in replacement for Discord, with a focus on simplicity and ease of use.
 
-## Design Spec Mockups
+## **Requirements**
 
-Visit `/mockups` for static, read-only design specifications documenting:
+- Docker
+- Docker Compose
 
-1. **Server Search** — Idle, loading, results, no results, error states
-2. **What You Missed** — Collapsed, expanded, no-unread, dismissed states
-3. **Manual AI Summary** — Trigger, loading, empty range, error, success states
-
-## Data
-
-The app currently uses **mock data** defined in `AppContext.tsx`. No backend or API is required to run the application.
-
-## License
-
-Private project.
+**Total setup time: Less than 5 minutes**
