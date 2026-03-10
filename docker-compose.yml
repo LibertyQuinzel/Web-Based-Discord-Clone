@@ -31,6 +31,10 @@ services:
       - NODE_ENV=development
       - JWT_SECRET=your-super-secret-jwt-key-change-this-in-production
       - JWT_EXPIRES_IN=7d
+    volumes:
+      - ./simple-server:/app
+      - /app/node_modules
+    command: npm run dev
     depends_on:
       - postgres
 
@@ -45,6 +49,10 @@ services:
       - "5173:5173"
     environment:
       - VITE_API_URL=http://localhost:3001
+    volumes:
+      - .:/app
+      - /app/node_modules
+    command: npm run dev
     depends_on:
       - backend
 

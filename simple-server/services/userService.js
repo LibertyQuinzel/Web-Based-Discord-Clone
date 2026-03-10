@@ -4,6 +4,61 @@ const jwt = require('jsonwebtoken');
 // In-memory user storage (replace with database later)
 const users = [];
 
+// Hash password
+const hashPassword = async (password) => {
+  const saltRounds = 10;
+  return await bcrypt.hash(password, saltRounds);
+};
+
+// Initialize demo accounts from frontend mock data
+const initializeDemoAccounts = async () => {
+  if (users.length === 0) {
+    const demoPasswordHash = await hashPassword('password123');
+    
+    users.push(
+      {
+        id: '1',
+        username: 'Nafisa',
+        email: 'nafisa@example.com',
+        password: demoPasswordHash,
+        createdAt: new Date().toISOString()
+      },
+      {
+        id: '2',
+        username: 'Ashraf',
+        email: 'ashraf@example.com',
+        password: demoPasswordHash,
+        createdAt: new Date().toISOString()
+      },
+      {
+        id: '3',
+        username: 'James',
+        email: 'james@example.com',
+        password: demoPasswordHash,
+        createdAt: new Date().toISOString()
+      },
+      {
+        id: '4',
+        username: 'Elvis',
+        email: 'elvis@example.com',
+        password: demoPasswordHash,
+        createdAt: new Date().toISOString()
+      },
+      {
+        id: '5',
+        username: 'Salma',
+        email: 'salma@example.com',
+        password: demoPasswordHash,
+        createdAt: new Date().toISOString()
+      }
+    );
+    console.log('Demo accounts initialized with password: password123');
+  }
+};
+
+// Initialize demo accounts on module load
+initializeDemoAccounts();
+
 // Generate JWT token
 const generateToken = (user) => {
   return jwt.sign(
@@ -15,12 +70,6 @@ const generateToken = (user) => {
     process.env.JWT_SECRET,
     { expiresIn: process.env.JWT_EXPIRES_IN }
   );
-};
-
-// Hash password
-const hashPassword = async (password) => {
-  const saltRounds = 10;
-  return await bcrypt.hash(password, saltRounds);
 };
 
 // Verify password
