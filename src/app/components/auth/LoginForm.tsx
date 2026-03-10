@@ -10,21 +10,33 @@ export const LoginForm: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
   const { login } = useApp();
   const navigate = useNavigate();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setIsLoading(true);
+
     if (!email || !password) {
       setError('Please fill in all fields');
+      setIsLoading(false);
       return;
     }
-    const success = login(email, password);
-    if (success) {
-      navigate('/channels');
-    } else {
-      setError('Invalid email or password');
+
+    try {
+      const success = await login(email, password);
+      if (success) {
+        navigate('/channels');
+      } else {
+        setError('Invalid email or password');
+      }
+    } catch (error) {
+      setError('Login failed. Please try again.');
+      console.error('Login error:', error);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -88,8 +100,8 @@ export const LoginForm: React.FC = () => {
               </div>
             )}
 
-            <Button type="submit" className="w-full bg-[#06b6d4] hover:bg-[#0891b2] text-white border-none shadow-lg shadow-[#06b6d4]/20 transition-all mt-2">
-              Sign In
+            <Button type="submit" disabled={isLoading} className="w-full bg-[#06b6d4] hover:bg-[#0891b2] text-white border-none shadow-lg shadow-[#06b6d4]/20 transition-all mt-2">
+              {isLoading ? 'Signing in...' : 'Sign In'}
             </Button>
 
             <p className="text-sm text-[#475569] text-center">
@@ -102,17 +114,6 @@ export const LoginForm: React.FC = () => {
                 Create an account
               </button>
             </p>
-
-            {/* Demo accounts */}
-            <div className="mt-4 p-3 bg-[#060c18] rounded-xl border border-[#1e3248] text-xs text-[#475569]">
-              <p className="font-semibold mb-2 text-[#64748b]">Demo accounts:</p>
-              <div className="space-y-0.5">
-                <p>nafisa@example.com</p>
-                <p>ashraf@example.com</p>
-                <p>james@example.com</p>
-              </div>
-              <p className="mt-2 text-[#374151]">Any password works</p>
-            </div>
           </form>
         </div>
       </div>
