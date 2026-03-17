@@ -11,15 +11,13 @@ router.post('/', authenticateToken, validate(channelSchema), async (req, res) =>
   try {
     const { name, serverId } = req.body;
     const userId = req.user.id;
-    
-    // Check if user is member of the server and has permission
-    const membership = await Server.isMember(serverId, userId);
-    if (!membership || (membership.role !== 'owner' && membership.role !== 'admin')) {
-      return res.status(403).json({
-        success: false,
-        message: 'Access denied: Only owner or admin can create channels'
-      });
-    }
+
+  if (!membership || (membership.role !== 'owner' && membership.role !== 'admin')) {
+    return res.status(403).json({
+      success: false,
+      message: 'Access denied: Only owner or admin can create channels'
+    });
+  }
     
     // Get current position for the new channel
     const existingChannels = await Channel.findByServerId(serverId);
