@@ -1,0 +1,53 @@
+classDiagram
+    %% Server Search (US3) - Full-Stack Class Diagram
+
+    class ServerSearch {
+        +String searchQuery
+        +Server[] filteredServers
+        +handleSearch(query)
+        +handleServerSelect(server)
+        +handleClear()
+    }
+
+    class apiService {
+        +searchServers(query, limit) Promise~SearchResult~
+    }
+
+    class ServerRoutes {
+        +GET /api/servers/search
+    }
+
+    class Server {
+        +String id
+        +String name
+        +String icon
+        +String owner_id
+        +create(data) Promise~Server~
+        +findById(id) Promise~Server~
+        +findByUserId(userId) Promise~Array~
+        +isMember(serverId, userId) Promise~Member~
+    }
+
+    class ServerMember {
+        +String id
+        +String server_id
+        +String user_id
+        +String role
+    }
+
+    class AppContext {
+        +Server[] servers
+        +User currentUser
+        +setSelectedServer(server)
+    }
+
+    %% Frontend relationships
+    ServerSearch --> AppContext : reads state
+    ServerSearch --> apiService : search calls
+
+    %% API boundary
+    apiService ..> ServerRoutes : HTTP GET
+
+    %% Backend relationships
+    ServerRoutes --> Server : ILIKE query
+    Server --> ServerMember : joined for member count

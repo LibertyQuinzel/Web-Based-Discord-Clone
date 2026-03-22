@@ -10,6 +10,10 @@ const serverRoutes = require('./routes/server');
 const channelRoutes = require('./routes/channel');
 const messageRoutes = require('./routes/messages');
 const directMessageRoutes = require('./routes/directMessages');
+const summaryRoutes = require('./routes/summary');
+const userRoutes = require('./routes/users');
+const friendRoutes = require('./routes/friends');
+const inviteRoutes = require('./routes/serverInvites');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -73,6 +77,33 @@ app.get('/api', (req, res) => {
       directMessages: {
         'GET /api/direct-messages': 'Get direct messages for current user (protected)',
         'POST /api/direct-messages': 'Create or get a direct message (protected)'
+      },
+      summaries: {
+        'POST /api/summaries/manual': 'Generate a manual AI summary for a channel or DM (protected)',
+        'GET /api/summaries/preview': 'Get a What You Missed preview for a channel or DM (protected)'
+      },
+      search: {
+        'GET /api/servers/search?q=': 'Search servers by name (protected)'
+      },
+      users: {
+        'GET /api/users/search?q=': 'Search users by username (protected)',
+        'GET /api/users/me': 'Get current user profile (protected)',
+        'PUT /api/users/me/profile': 'Update display name and avatar (protected)',
+        'PUT /api/users/me/status': 'Update online status (protected)',
+        'GET /api/users/:userId': 'Get user by ID (protected)'
+      },
+      friends: {
+        'GET /api/friends': 'List accepted friends (protected)',
+        'GET /api/friends/requests': 'List pending friend requests (protected)',
+        'POST /api/friends/requests': 'Send a friend request (protected)',
+        'POST /api/friends/requests/:id/accept': 'Accept a friend request (protected)',
+        'POST /api/friends/requests/:id/reject': 'Reject a friend request (protected)'
+      },
+      invites: {
+        'GET /api/invites/pending': 'List pending server invites (protected)',
+        'POST /api/invites': 'Create a server invite (protected)',
+        'POST /api/invites/:id/accept': 'Accept a server invite (protected)',
+        'POST /api/invites/:id/decline': 'Decline a server invite (protected)'
       }
     }
   });
@@ -105,25 +136,51 @@ app.use('/api/messages', messageRoutes);
 // Direct message routes
 app.use('/api/direct-messages', directMessageRoutes);
 
+// Summary routes (manual summary + What You Missed preview)
+app.use('/api/summaries', summaryRoutes);
+
+// User routes (search, profile, status)
+app.use('/api/users', userRoutes);
+
+// Friend routes (list, requests, send, accept, reject)
+app.use('/api/friends', friendRoutes);
+
+// Server invite routes (create, pending, accept, decline)
+app.use('/api/invites', inviteRoutes);
+
 // API Documentation/Explorer
 app.get('/api/docs', (req, res) => {
   res.sendFile(path.join(__dirname, 'docs.html'));
 });
 
-// Start server
-app.listen(PORT, '0.0.0.0', async () => {
-  console.log(`Simple server running on port ${PORT}`);
-  console.log(`Health check: http://localhost:${PORT}/health`);
-  console.log(`API endpoint: http://localhost:${PORT}/api`);
-  console.log(`Interactive docs: http://localhost:${PORT}/api/docs`);
-  console.log(`Auth endpoints: http://localhost:${PORT}/api/auth`);
-  
-  // Initialize database
-  try {
-    await initializeDatabase();
-    console.log('Database initialized successfully');
-  } catch (error) {
-    console.error('Failed to initialize database:', error);
-    process.exit(1);
-  }
-});
+// Initialise DB, demo accounts, and seed data. Exported for tests.
+const initAll = async () => {
+  await initializeDatabase();
+  console.log('Database initialized successfully');
+
+  const { initializeDemoAccounts } = require('./services/userService');
+  await initializeDemoAccounts();
+
+  const { seedDatabase } = require('./services/seedData');
+  await seedDatabase();
+};
+
+// Only start listening when run directly (not when imported by tests)
+if (require.main === module) {
+  app.listen(PORT, '0.0.0.0', async () => {
+    console.log(`Simple server running on port ${PORT}`);
+    console.log(`Health check: http://localhost:${PORT}/health`);
+    console.log(`API endpoint: http://localhost:${PORT}/api`);
+    console.log(`Interactive docs: http://localhost:${PORT}/api/docs`);
+    console.log(`Auth endpoints: http://localhost:${PORT}/api/auth`);
+
+    try {
+      await initAll();
+    } catch (error) {
+      console.error('Failed to initialize database:', error);
+      process.exit(1);
+    }
+  });
+}
+
+module.exports = { app, initAll };

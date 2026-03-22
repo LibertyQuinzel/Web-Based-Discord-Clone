@@ -1,51 +1,62 @@
 classDiagram
-    %% Manual Summary - Class Diagram (Updated for Actual Codebase)
-    
+    %% Manual Summary (US1) - Full-Stack Class Diagram
+
     class ManualSummary {
         +Message[] messages
         +Function onClose
-        +SummaryData summaryData
         +Boolean isOpen
         +Number selectedHours
         +Boolean isLoading
         +String error
-        +generateManualSummary()
+        +SummaryData summaryData
+        +handleGenerateSummary()
         +handleTimeRangeChange()
         +handleClose()
-        +handleGenerateSummary()
-        +formatTimeframe()
-        +filterMessagesByTimeRange()
     }
 
-    class Message {
-        +String id
-        +String content
-        +String authorId
-        +String channelId
-        +String dmId
-        +Date timestamp
-        +Boolean edited
-        +MessageReaction[] reactions
-        +String replyToId
-        +String serverInviteId
+    class apiService {
+        +generateManualSummary(channelId, options) Promise~SummaryData~
     }
 
-    class User {
-        +String id
-        +String username
-        +String displayName
-        +String email
-        +String avatar
-        +String status
+    class SummaryService {
+        +generateManualSummary(options) Promise~SummaryData~
+        +generatePreview(options) Promise~PreviewData~
+        -_fetchMessages(options) Promise~FetchResult~
+    }
+
+    class SummarizationProvider {
+        +summarize(messages, authorMap) Promise~SummarizeResult~
+        +preview(messages, authorMap) Promise~string~
+        -_extractTopics(messages) string[]
+        -_buildOverview(messages, authorMap, topics, qCount, dCount) string
     }
 
     class SummaryData {
         +String overview
         +String[] keyTopics
         +Object[] mostActiveUsers
-        +Message[] importantMessages
+        +Object[] importantMessages
         +String timeframe
         +Object stats
+    }
+
+    class Message {
+        +String id
+        +String content
+        +String author_id
+        +String channel_id
+        +String dm_id
+        +Timestamp timestamp
+        +Boolean edited
+    }
+
+    class User {
+        +String id
+        +String username
+        +String display_name
+        +String email
+        +String avatar
+        +String status
     }
 
     class AppContext {
@@ -54,28 +65,16 @@ classDiagram
         +Server[] servers
         +Channel[] channels
         +Object currentUser
-        +Function addMessage()
-        +Function updateMessage()
-        +Function deleteMessage()
-        +Function fetchMessages()
     }
 
-    class MessageArea {
-        +Message[] messages
-        +String channelId
-        +Function onMessageSent
-        +Function renderMessages()
-        +Function handleScroll()
-        +Function markAsRead()
-    }
+    %% Frontend relationships
+    ManualSummary --> apiService : calls
+    ManualSummary --> AppContext : reads context
+    ManualSummary --> SummaryData : displays
 
-    %% Relationships based on actual implementation
-    ManualSummary --> Message : uses
-    ManualSummary --> SummaryData : creates
-    ManualSummary --> AppContext : consumes
-    MessageArea --> Message : displays
-    MessageArea --> ManualSummary : triggers
-    AppContext --> Message : manages
-    AppContext --> User : manages
-    SummaryData --> Message : references
-    Message --> User : authored by
+    %% Backend relationships
+    apiService ..> SummaryService : HTTP POST
+    SummaryService --> SummarizationProvider : delegates summarisation
+    SummaryService ..> SummaryData : produces
+    SummarizationProvider --> Message : processes
+    Message --> User : author_id FK

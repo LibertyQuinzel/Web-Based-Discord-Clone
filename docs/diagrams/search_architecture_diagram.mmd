@@ -1,32 +1,52 @@
 graph TB
-    %% Clear Server Search Bar - Architecture Diagram
-    %% MVC Architecture Pattern
+    %% Server Search (US3) - Full-Stack Architecture
 
-    subgraph "Client Side (View)"
-        A[Frontend<br/>React]
-        B[ServerSearchInput<br/>SB1.1<br/>Search Field + Clear Button]
-        C[ServerSearch<br/>SB1.2<br/>Server List Display]
+    subgraph "View Layer (React)"
+        V1[ServerSearch Component<br/>Search Input · Results List]
+        V2[ServerSearchInput<br/>Text Field · Clear Button]
     end
 
-    subgraph "Client Side (Controller)"
-        D[User Interactions<br/>Event Handlers<br/>- onChange<br/>- onClear<br/>- onServerSelect]
+    subgraph "Controller Layer (Frontend)"
+        C1[handleSearch<br/>Debounced query change]
+        C2[handleServerSelect<br/>Navigate to server]
     end
 
-    subgraph "Client Side (Model)"
-        E[AppContext<br/>State Management]
-        F[Server Data<br/>servers]
-        G[User Data<br/>currentUser]
-        H[Search Query<br/>searchQuery]
+    subgraph "API Layer (apiService.ts)"
+        API[apiService.searchServers<br/>GET /api/servers/search?q=]
     end
 
-    %% MVC Data Flow
-    A --> B
-    A --> C
-    B --> D
-    C --> D
-    D --> E
-    D --> H
-    E --> F
-    E --> G
-    H --> E
-    E --> A
+    subgraph "Backend Controller (Express Routes)"
+        RC[server.js route handler<br/>Auth · Query Parsing]
+    end
+
+    subgraph "Backend Model (Server Model + DB)"
+        SM[Server.search<br/>ILIKE query on name + description]
+        MEM[Server Members Join<br/>Returns member list per server]
+        DB[(PostgreSQL<br/>servers · server_members · users)]
+    end
+
+    V1 --> V2
+    V2 --> C1
+    V1 --> C2
+    C1 --> API
+    API -->|HTTP GET| RC
+    RC --> SM
+    SM --> DB
+    SM --> MEM
+    MEM --> DB
+    SM -->|Server list with members| RC
+    RC -->|JSON| API
+    API -->|servers| C1
+    C1 --> V1
+
+    classDef view fill:#e3f2fd,stroke:#1a73e8,stroke-width:2px
+    classDef controller fill:#e8f5e9,stroke:#34a853,stroke-width:2px
+    classDef api fill:#f3e5f5,stroke:#4a148c,stroke-width:2px
+    classDef backend fill:#fff3e0,stroke:#e65100,stroke-width:2px
+    classDef model fill:#fce4ec,stroke:#880e4f,stroke-width:2px
+
+    class V1,V2 view
+    class C1,C2 controller
+    class API api
+    class RC backend
+    class SM,MEM,DB model

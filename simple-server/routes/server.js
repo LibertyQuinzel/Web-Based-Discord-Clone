@@ -1,10 +1,61 @@
 const express = require('express');
 const Server = require('../models/Server');
 const Channel = require('../models/Channel');
+const { pool } = require('../config/database');
 const { authenticateToken } = require('../middleware/auth');
 const { validate, serverSchema } = require('../utils/validation');
 
 const router = express.Router();
+
+// Search servers by name (must be defined before /:serverId to avoid route conflict)
+router.get('/search', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const q = String(req.query.q || '').trim();
+
+    if (!q) {
+      return res.status(400).json({
+        success: false,
+        message: 'Query parameter `q` is required',
+      });
+    }
+
+    const limit = parseInt(req.query.limit, 10) || 20;
+
+    const query = `
+      SELECT s.*, sm.role,
+             (SELECT COUNT(*) FROM server_members sm2 WHERE sm2.server_id = s.id) as member_count
+      FROM servers s
+      JOIN server_members sm ON s.id = sm.server_id AND sm.user_id = $1
+      WHERE s.name ILIKE $2
+      ORDER BY s.name ASC
+      LIMIT $3
+    `;
+
+    const result = await pool.query(query, [userId, `%${q}%`, limit]);
+
+    const servers = result.rows.map((row) => ({
+      id: row.id,
+      name: row.name,
+      icon: row.icon,
+      owner_id: row.owner_id,
+      member_count: parseInt(row.member_count, 10),
+      role: row.role,
+      created_at: row.created_at,
+    }));
+
+    res.status(200).json({
+      success: true,
+      data: { servers },
+    });
+  } catch (error) {
+    console.error('Error searching servers:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to search servers',
+    });
+  }
+});
 
 // Create a new server
 router.post('/', authenticateToken, validate(serverSchema), async (req, res) => {
@@ -49,15 +100,33 @@ router.post('/', authenticateToken, validate(serverSchema), async (req, res) => 
   }
 });
 
-// Get servers for current user
+// Get servers for current user (includes member user IDs for each server)
 router.get('/', authenticateToken, async (req, res) => {
   try {
     const userId = req.user.id;
     const servers = await Server.findByUserId(userId);
-    
+
+    const serverIds = servers.map(s => s.id);
+    let memberMap = {};
+    if (serverIds.length > 0) {
+      const membersResult = await pool.query(
+        `SELECT server_id, user_id FROM server_members WHERE server_id = ANY($1)`,
+        [serverIds]
+      );
+      for (const row of membersResult.rows) {
+        if (!memberMap[row.server_id]) memberMap[row.server_id] = [];
+        memberMap[row.server_id].push(row.user_id);
+      }
+    }
+
+    const enriched = servers.map(s => ({
+      ...s,
+      members: memberMap[s.id] || [],
+    }));
+
     res.status(200).json({
       success: true,
-      data: { servers }
+      data: { servers: enriched }
     });
   } catch (error) {
     console.error('Error fetching servers:', error);

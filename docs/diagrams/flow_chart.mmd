@@ -1,50 +1,50 @@
 flowchart TD
-    %% Manual Summary - Flow Chart (Updated for Actual Implementation)
+    %% Manual Summary (US1) - Full-Stack Flow Chart
 
-    A([User clicks Summary Button]) --> B[Open ManualSummary Component]
-    B --> C[Set isOpen true, isLoading true]
-    C --> D[Display time range presets]
-    D --> E[User selects time range]
-    E --> F[handleGenerateSummary called]
-    F --> G[filterMessagesByTimeRange]
-    G --> H{Messages found?}
+    A([User clicks Generate Summary]) --> B[Open ManualSummary modal]
+    B --> C[User selects time range preset]
+    C --> D[Frontend calls apiService.generateManualSummary]
 
-    H -->|Yes| I[generateManualSummary process]
-    H -->|No| J[Return empty summary]
+    D --> E[POST /api/summaries/manual<br/>channelId, hours, maxMessages]
+    E --> F{JWT valid?}
+    F -->|No| G[401 Unauthorized]
+    F -->|Yes| H{channelId or dmId<br/>provided correctly?}
+    H -->|No| I[400 Bad Request]
+    H -->|Yes| J{User has access<br/>to channel/DM?}
+    J -->|No| K[403 Forbidden]
 
-    I --> K[Extract key topics and user activity]
-    K --> L[Identify important messages]
-    L --> M[Generate overview text]
-    M --> N[Create SummaryData object]
-    N --> O[Set isLoading false, Display summary]
+    J -->|Yes| L[SummaryService.generateManualSummary]
+    L --> M[Fetch messages from PostgreSQL<br/>WHERE timestamp >= since LIMIT max]
+    M --> N{Messages found?}
+    N -->|No| O[Return empty summary]
+    N -->|Yes| P[SummarizationProvider.summarize]
+    P --> Q[Extract key topics via word frequency]
+    Q --> R[Build overview text]
+    R --> S[Identify important messages]
+    S --> T[Compute stats: totalMessages, uniqueUsers, questions, decisions]
+    T --> U[Assemble SummaryData object]
 
-    J --> P[Set isLoading false, Show no messages]
-    O --> Q[User can change time range]
-    P --> Q
+    U --> V[200 JSON response]
+    O --> V
+    V --> W[Frontend receives summaryData]
+    W --> X[Display summary in modal]
 
-    Q --> E
-    O --> R([User closes summary])
-    P --> R
-    R --> S[Set isOpen false, Cleanup state]
-    S --> T([END])
+    X --> Y{User changes time range?}
+    Y -->|Yes| C
+    Y -->|No| Z([User closes modal])
 
-    %% Error handling
-    I --> U{Processing error?}
-    U -->|Yes| V[Set error state, Display error]
-    U -->|No| K
-    V --> W[User can retry or close]
-    W --> F
-    W --> R
+    G --> AA([Error displayed to user])
+    I --> AA
+    K --> AA
 
-    %% Styling
-    classDef startEnd fill:#e3f2fd,stroke:#1a73e8,stroke-width:2px
-    classDef process fill:#e8f5e8,stroke:#34a853,stroke-width:2px
-    classDef decision fill:#fff3e0,stroke:#fbbc04,stroke-width:2px
-    classDef data fill:#ffebee,stroke:#ea4335,stroke-width:2px
+    classDef start fill:#e3f2fd,stroke:#1a73e8,stroke-width:2px
+    classDef frontend fill:#e8f5e9,stroke:#34a853,stroke-width:2px
+    classDef backend fill:#fff3e0,stroke:#e65100,stroke-width:2px
     classDef error fill:#fce8e6,stroke:#d93025,stroke-width:2px
+    classDef decision fill:#f3e5f5,stroke:#4a148c,stroke-width:2px
 
-    class A,T startEnd
-    class B,C,D,F,G,I,K,L,M,N,O,Q,R,S process
-    class E,H,U decision
-    class J,P data
-    class V,W error
+    class A,Z,AA start
+    class B,C,D,W,X frontend
+    class E,L,M,P,Q,R,S,T,U,V,O backend
+    class F,H,J,N,Y decision
+    class G,I,K error

@@ -1,15 +1,47 @@
 flowchart TD
-    A[User opens channel/DM] --> B{Unread messages?}
-    B -->|Yes| C[Show WYMS bar]
-    B -->|No| D[No WYMS bar]
-    C --> E{User clicks expand?}
-    E -->|Yes| F[Generate summary]
-    E -->|No| G[Stay compact]
-    F --> H[Show expanded summary]
-    H --> I{User dismisses?}
-    I -->|Yes| J[Mark as read]
-    I -->|No| H
-    G --> K{User dismisses?}
-    K -->|Yes| J
-    K -->|No| G
-    J --> L[Hide WYMS bar]
+    %% What You Missed Preview (US2) - Full-Stack Flow Chart
+
+    A([User opens channel or DM]) --> B[AppContext.getUnreadMessages]
+    B --> C{Unread messages > 0?}
+    C -->|No| D[No WYMS bar shown]
+    C -->|Yes| E[Render WhatYouMissed bar in compact mode]
+
+    E --> F{User clicks expand?}
+    F -->|No| G[Stay in compact mode]
+    F -->|Yes| H[Frontend calls GET /api/summaries/preview<br/>with channelId and since timestamp]
+
+    H --> I{JWT valid?}
+    I -->|No| J[401 Unauthorized]
+    I -->|Yes| K{User has access?}
+    K -->|No| L[403 Forbidden]
+    K -->|Yes| M[SummaryService.generatePreview]
+
+    M --> N[Fetch messages from PostgreSQL<br/>WHERE timestamp >= since]
+    N --> O{Messages found?}
+    O -->|No| P[Return empty preview]
+    O -->|Yes| Q[SummarizationProvider.preview]
+    Q --> R[Identify top authors + message count]
+    R --> S[Build one-line summary string]
+
+    S --> T[200 JSON response with preview + stats]
+    P --> T
+    T --> U[Display expanded preview summary]
+
+    U --> V{User dismisses?}
+    G --> V
+    V -->|Yes| W[Mark channel as read via lastReadMessages]
+    W --> X[Hide WYMS bar]
+    V -->|No| Y[Bar remains visible]
+    X --> Z([END])
+
+    classDef start fill:#e3f2fd,stroke:#1a73e8,stroke-width:2px
+    classDef frontend fill:#e8f5e9,stroke:#34a853,stroke-width:2px
+    classDef backend fill:#fff3e0,stroke:#e65100,stroke-width:2px
+    classDef error fill:#fce8e6,stroke:#d93025,stroke-width:2px
+    classDef decision fill:#f3e5f5,stroke:#4a148c,stroke-width:2px
+
+    class A,Z start
+    class B,E,G,U,W,X,Y frontend
+    class H,M,N,Q,R,S,T,P backend
+    class C,F,I,K,O,V decision
+    class D,J,L error

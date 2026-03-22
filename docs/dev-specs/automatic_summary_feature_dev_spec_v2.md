@@ -27,7 +27,7 @@ The header section clearly identifies what feature document covers and which pro
 
 ## 2. Architecture Diagram
 
-![Automatic Architecture Diagram](../diagrams/automatic_architecture_diagram.png)
+![Automatic Architecture Diagram](../diagrams/rendered/automatic_architecture_diagram.png)
 
 ### 2.2 Architecture Description
 
@@ -68,7 +68,7 @@ This architecture follows MVC (Model-View-Controller) pattern and maximizes comp
 
 ## 3. Class Diagrams
 
-![Class Diagram](../diagrams/automatic_class_diagram.png)
+![Class Diagram](../diagrams/rendered/automatic_class_diagram.png)
 
 **Actual Implementation (Single Component):**
 
@@ -145,11 +145,11 @@ The actual implementation uses a pragmatic approach with a single React componen
 
 ## 5. State Diagrams
 
-![State Diagram](../diagrams/automatic_state_diagram.png)
+![State Diagram](../diagrams/rendered/automatic_state_diagram.png)
 
 ## 6. Flow Charts (Scenario‑Based)
 
-![Flow Chart](../diagrams/automatic_flow_chart.png)
+![Flow Chart](../diagrams/rendered/automatic_flow_chart.png)
 
 #### Scenario: WYMS1.0 User Views Unread Messages
 **Starting State:** COMPACT

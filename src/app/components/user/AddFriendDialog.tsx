@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useApp } from '../../context/AppContext';
+import { apiService } from '../../services/apiService';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '../ui/dialog';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
-import { UserPlus } from 'lucide-react';
+import { UserPlus, Loader2 } from 'lucide-react';
 
 interface AddFriendDialogProps {
   open: boolean;
@@ -14,19 +15,51 @@ interface AddFriendDialogProps {
 export const AddFriendDialog: React.FC<AddFriendDialogProps> = ({ open, onOpenChange }) => {
   const [username, setUsername] = useState('');
   const [message, setMessage] = useState('');
-  const { users, currentUser, sendFriendRequest } = useApp();
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const { currentUser, sendFriendRequest } = useApp();
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const handleSend = () => {
-    const user = users.find(
-      (u) => u.username.toLowerCase() === username.toLowerCase() && u.id !== currentUser?.id
-    );
+  useEffect(() => {
+    if (!open) {
+      setUsername('');
+      setMessage('');
+      setSearchResults([]);
+    }
+  }, [open]);
 
-    if (!user) {
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    const q = username.trim();
+    if (q.length < 1) {
+      setSearchResults([]);
+      return;
+    }
+    setIsSearching(true);
+    debounceRef.current = setTimeout(async () => {
+      try {
+        const results = await apiService.searchUsers(q, 10);
+        setSearchResults(results.filter((u: any) => u.id !== currentUser?.id));
+      } catch {
+        setSearchResults([]);
+      } finally {
+        setIsSearching(false);
+      }
+    }, 300);
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
+  }, [username, currentUser?.id]);
+
+  const handleSend = (userId?: string) => {
+    const targetId = userId || searchResults.find(
+      (u) => u.username.toLowerCase() === username.toLowerCase()
+    )?.id;
+
+    if (!targetId) {
       setMessage('User not found');
       return;
     }
 
-    sendFriendRequest(user.id);
+    sendFriendRequest(targetId);
     setMessage('Friend request sent!');
     setUsername('');
 
@@ -71,14 +104,39 @@ export const AddFriendDialog: React.FC<AddFriendDialogProps> = ({ open, onOpenCh
             </p>
           )}
 
-          <div className="p-3 bg-[#060c18] border border-[#1e3248] rounded-xl text-xs text-[#475569]">
-            <p className="font-semibold mb-1 text-[#64748b]">Available users:</p>
-            {users
-              .filter((u) => u.id !== currentUser?.id)
-              .map((u) => (
-                <p key={u.id}>{u.username}</p>
+          {isSearching && (
+            <div className="flex items-center gap-2 text-[#475569] text-sm">
+              <Loader2 className="size-4 animate-spin" />
+              Searching...
+            </div>
+          )}
+
+          {searchResults.length > 0 && (
+            <div className="p-2 bg-[#060c18] border border-[#1e3248] rounded-xl space-y-1 max-h-48 overflow-y-auto">
+              <p className="text-xs font-semibold text-[#64748b] px-1 mb-1">Search results</p>
+              {searchResults.map((u) => (
+                <button
+                  key={u.id}
+                  onClick={() => handleSend(u.id)}
+                  className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-[#1a2d45] transition-colors text-left"
+                >
+                  <img
+                    src={u.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${u.username}`}
+                    alt=""
+                    className="size-7 rounded-full ring-2 ring-[#1e3248]"
+                  />
+                  <span className="text-sm text-[#e2e8f0]">{u.display_name || u.username}</span>
+                  <span className="text-xs text-[#475569]">@{u.username}</span>
+                </button>
               ))}
-          </div>
+            </div>
+          )}
+
+          {!isSearching && username.trim().length > 0 && searchResults.length === 0 && (
+            <div className="text-xs text-[#475569] p-3 bg-[#060c18] border border-[#1e3248] rounded-xl">
+              No users found matching "{username}"
+            </div>
+          )}
         </div>
 
         <DialogFooter>
@@ -89,7 +147,7 @@ export const AddFriendDialog: React.FC<AddFriendDialogProps> = ({ open, onOpenCh
           >
             Cancel
           </Button>
-          <Button onClick={handleSend} className="bg-[#06b6d4] hover:bg-[#0891b2] text-white border-none">
+          <Button onClick={() => handleSend()} className="bg-[#06b6d4] hover:bg-[#0891b2] text-white border-none">
             Send Request
           </Button>
         </DialogFooter>

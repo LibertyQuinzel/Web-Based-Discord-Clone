@@ -1,41 +1,40 @@
 stateDiagram-v2
-    %% Manual Summary - State Machine Diagram
-    %% Based on actual ManualSummary.tsx implementation
+    %% Manual Summary (US1) - State Diagram
 
-    [*] --> INITIALIZING
+    [*] --> IDLE : modal opened
 
-    %% Initial component mount
-    INITIALIZING --> LOADING : componentDidMount()\n[useEffect runs generate()]
+    IDLE --> LOADING : user selects time range / generate()
+    LOADING --> HAS_SUMMARY : API returns summaryData with messages > 0
+    LOADING --> NO_MESSAGES : API returns summaryData with messages === 0
+    LOADING --> ERROR : API error or network failure
 
-    %% Generation process
-    LOADING --> HAS_SUMMARY : generateManualSummary()\n[summaryData populated && messages > 0]
-    LOADING --> NO_MESSAGES : generateManualSummary()\n[summaryData populated && messages === 0]
+    ERROR --> LOADING : user retries
 
-    %% Time range changes (from any state except loading)
-    HAS_SUMMARY --> LOADING : handlePreset()\n[new time range selected]
-    NO_MESSAGES --> LOADING : handlePreset()\n[new time range selected]
+    HAS_SUMMARY --> LOADING : user changes time range preset
+    NO_MESSAGES --> LOADING : user changes time range preset
 
-    %% Close transitions (from any state)
-    INITIALIZING --> [*] : onClose()\n[Escape/backdrop click]
-    LOADING --> [*] : onClose()\n[Escape/backdrop click]
-    HAS_SUMMARY --> [*] : onClose()\n[Escape/backdrop click]
-    NO_MESSAGES --> [*] : onClose()\n[Escape/backdrop click]
+    IDLE --> [*] : onClose
+    LOADING --> [*] : onClose
+    HAS_SUMMARY --> [*] : onClose
+    NO_MESSAGES --> [*] : onClose
+    ERROR --> [*] : onClose
 
-    %% State definitions and transitions
-    note right of INITIALIZING
-        **State Definitions:**
-        INITIALIZING: Component mounted, setting up portal
-        LOADING: Generating summary, showing spinner
-        HAS_SUMMARY: Summary ready, displaying results
-        NO_MESSAGES: No messages found in time range
+    note right of IDLE
+        Modal rendered via portal
+        Time presets shown: 30m, 1h, 3h
+    end note
 
-        **Key State Variables:**
-        isGenerating: boolean (true during LOADING)
-        summaryData: null or SummaryData object
-        selectedHours: 0.5 | 1 | 3 (time range)
+    note right of LOADING
+        POST /api/summaries/manual
+        isLoading = true, spinner shown
+    end note
 
-        **Transition Triggers:**
-        componentDidMount: Initial render
-        handlePreset: Time range button clicked
-        onClose: Escape key or backdrop click
+    note right of HAS_SUMMARY
+        Displays: overview, keyTopics,
+        mostActiveUsers, importantMessages, stats
+    end note
+
+    note right of ERROR
+        Displays error message
+        Retry button available
     end note

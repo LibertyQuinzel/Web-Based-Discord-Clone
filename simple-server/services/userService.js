@@ -69,8 +69,8 @@ const initializeDemoAccounts = async () => {
   }
 };
 
-// Initialize demo accounts on module load
-initializeDemoAccounts();
+// Exported so server.js can call it after DB is ready
+// (no longer auto-runs on import to avoid race conditions)
 
 // Generate JWT token
 const generateToken = (user) => {
@@ -159,5 +159,6 @@ module.exports = {
   registerUser,
   loginUser,
   getUserById,
-  getAllUsers
+  getAllUsers,
+  initializeDemoAccounts
 };

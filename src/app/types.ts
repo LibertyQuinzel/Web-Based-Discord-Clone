@@ -59,5 +59,7 @@ export interface ServerInvite {
   toUserId: string;
   status: 'pending' | 'accepted' | 'declined';
   timestamp: Date;
-  messageId?: string; // ID of the DM message containing the invite
+  messageId?: string;
+  serverName?: string;
+  serverIcon?: string;
 }

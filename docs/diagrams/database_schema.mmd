@@ -1,0 +1,101 @@
+erDiagram
+    users {
+        VARCHAR id PK
+        VARCHAR username UK
+        VARCHAR email UK
+        VARCHAR password_hash
+        VARCHAR display_name
+        VARCHAR avatar
+        VARCHAR status
+        TIMESTAMP created_at
+        TIMESTAMP updated_at
+    }
+
+    servers {
+        VARCHAR id PK
+        VARCHAR name
+        VARCHAR icon
+        VARCHAR owner_id FK
+        TIMESTAMP created_at
+        TIMESTAMP updated_at
+    }
+
+    server_members {
+        VARCHAR id PK
+        VARCHAR server_id FK
+        VARCHAR user_id FK
+        VARCHAR role
+        TIMESTAMP joined_at
+    }
+
+    channels {
+        VARCHAR id PK
+        VARCHAR name
+        VARCHAR server_id FK
+        INTEGER position
+        TIMESTAMP created_at
+        TIMESTAMP updated_at
+    }
+
+    messages {
+        VARCHAR id PK
+        TEXT content
+        VARCHAR author_id FK
+        VARCHAR channel_id FK
+        VARCHAR dm_id FK
+        TIMESTAMP timestamp
+        BOOLEAN edited
+        VARCHAR reply_to_id FK
+        VARCHAR server_invite_id FK
+    }
+
+    message_reactions {
+        VARCHAR id PK
+        VARCHAR message_id FK
+        VARCHAR emoji
+        VARCHAR user_id FK
+    }
+
+    direct_messages {
+        VARCHAR id PK
+        TEXT_ARRAY participants
+        TIMESTAMP last_message_time
+        TIMESTAMP created_at
+        TIMESTAMP updated_at
+    }
+
+    friend_requests {
+        VARCHAR id PK
+        VARCHAR from_user_id FK
+        VARCHAR to_user_id FK
+        VARCHAR status
+        TIMESTAMP created_at
+        TIMESTAMP updated_at
+    }
+
+    server_invites {
+        VARCHAR id PK
+        VARCHAR server_id FK
+        VARCHAR from_user_id FK
+        VARCHAR to_user_id FK
+        VARCHAR status
+        VARCHAR message_id FK
+        TIMESTAMP created_at
+        TIMESTAMP updated_at
+    }
+
+    users ||--o{ servers : "owns"
+    users ||--o{ server_members : "joins"
+    servers ||--o{ server_members : "has"
+    servers ||--o{ channels : "contains"
+    users ||--o{ messages : "authors"
+    channels ||--o{ messages : "holds"
+    messages ||--o{ message_reactions : "has"
+    users ||--o{ message_reactions : "reacts"
+    messages ||--o| messages : "replies to"
+    users ||--o{ friend_requests : "sends"
+    users ||--o{ friend_requests : "receives"
+    servers ||--o{ server_invites : "invited to"
+    users ||--o{ server_invites : "sends"
+    users ||--o{ server_invites : "receives"
+    messages ||--o| server_invites : "linked"

@@ -20,7 +20,7 @@
 
 ## 2. Architecture Diagram
 
-![Architecture Diagram](../diagrams/architecture_diagram.png)
+![Architecture Diagram](../diagrams/rendered/architecture_diagram.png)
 
 ### Deployment and Where Components Run
 
@@ -38,7 +38,7 @@ This architecture uses a MVC pattern to make sure that the application stays res
 
 ## 3. Class Diagrams
 
-![Class Diagram](../diagrams/class_diagram.png)
+![Class Diagram](../diagrams/rendered/class_diagram.png)
 
 **Actual Implementation (Single Component):**
 
@@ -93,11 +93,11 @@ The actual implementation uses a pragmatic single-component approach that handle
 
 ## 5. State Diagrams
 
-![State Diagram](../diagrams/state_diagram.png)
+![State Diagram](../diagrams/rendered/state_diagram.png)
 
 ## 6. Flow Charts (Scenario‑Based)
 
-![Flow Chart](../diagrams/flow_chart.png)
+![Flow Chart](../diagrams/rendered/flow_chart.png)
 
 #### Scenario: SC1.0 Manual Summary With New Messages Available
 **Starting State:** CLOSED
@@ -288,17 +288,17 @@ This threat analysis looks into the different problems that could arise in this 
 * **Justification vs Alternatives:** Strong ACID guarantees and structured querying better suited than NoSQL alternatives (e.g., MongoDB) for relational message and user data integrity.
 * **Documentation:** [https://www.postgresql.org/docs/](https://www.postgresql.org/docs/)
 
-**TECH‑06 Prisma ORM**
-* **Version:** 5.x
-* **Purpose:** Type‑safe database access layer between Node.js services and PostgreSQL.
-* **Justification vs Alternatives:** Auto‑generated typed queries integrate well with TypeScript, reducing runtime query errors compared to raw SQL or Sequelize.
-* **Documentation:** [https://www.prisma.io/docs/](https://www.prisma.io/docs/)
+**TECH‑06 pg (node-postgres)**
+* **Version:** 8.x
+* **Purpose:** PostgreSQL client driver providing a connection pool and parameterised query execution.
+* **Justification vs Alternatives:** Lightweight native driver with connection pooling; avoids the overhead and learning curve of a full ORM like Prisma or Sequelize for this project's scope.
+* **Documentation:** [https://node-postgres.com/](https://node-postgres.com/)
 
-**TECH‑07 OpenAI API**
-* **Version:** v1 (REST API)
-* **Purpose:** External summarization engine for generating manual message summaries.
-* **Justification vs Alternatives:** High-quality LLM-based summarization (NLP) without maintaining custom models internally; faster integration compared to building in-house ML pipelines.
-* **Documentation:** [https://platform.openai.com/docs/](https://platform.openai.com/docs/)
+**TECH‑07 Groq API (mocked in P4)**
+* **Version:** REST API
+* **Purpose:** External LLM summarization engine (Groq). In P4 the call is mocked by a deterministic `SummarizationProvider`; in P5 the mock is replaced with live API calls.
+* **Justification vs Alternatives:** High-quality LLM-based summarization without maintaining custom models internally; Groq aligns with AWS-compatible external service strategy.
+* **Documentation:** [https://console.groq.com/docs/](https://console.groq.com/docs/)
 
 **TECH‑08 RESTful HTTP API**
 * **Version:** HTTP/1.1 or HTTP/2
@@ -306,32 +306,20 @@ This threat analysis looks into the different problems that could arise in this 
 * **Justification vs Alternatives:** Simpler and widely supported compared to GraphQL for this feature; easier debugging and caching strategies.
 * **Documentation:** [https://developer.mozilla.org/en-US/docs/Web/HTTP](https://developer.mozilla.org/en-US/docs/Web/HTTP)
 
-**TECH‑09 WebSocket (Socket.IO)**
-* **Version:** 4.x
-* **Purpose:** Real‑time message updates and synchronization of read markers.
-* **Justification vs Alternatives:** Enables bidirectional communication for live chat more efficiently than polling‑based REST updates.
-* **Documentation:** [https://socket.io/docs/v4/](https://socket.io/docs/v4/)
-
-**TECH‑10 Docker**
+**TECH‑09 Docker**
 * **Version:** 24.x
 * **Purpose:** Containerization of backend services and summarization worker processes.
 * **Justification vs Alternatives:** Ensures consistent deployment environments and simplifies scaling compared to manual VM configuration.
 * **Documentation:** [https://docs.docker.com/](https://docs.docker.com/)
 
-**TECH‑11 Nginx**
-* **Version:** 1.24.x
-* **Purpose:** Reverse proxy and load balancer for routing traffic to backend services.
-* **Justification vs Alternatives:** Lightweight, high-performance traffic handling compared to Apache HTTP Server in microservice architectures.
-* **Documentation:** [https://nginx.org/en/docs/](https://nginx.org/en/docs/)
-
-**TECH‑12 Git**
+**TECH‑10 Git**
 * **Version:** 2.x
 * **Purpose:** Version control system for collaborative development and version tracking.
 * **Justification vs Alternatives:** Industry standard distributed version control with branching flexibility compared to centralized systems like Subversion.
 * **Documentation:** [https://git-scm.com/docs](https://git-scm.com/docs)
 
 ### Rationale and Justification:
-This technology stack uses standard technologies such as PostgreSQL, React, Node.js to make sure the data stays consistent across the full stack. By implementing OpenAI, we can implement better quality summarization features without having to train custom models, and Socket.IO can be used to find out what the "last read" text is to trigger the summarization. The overall architecture follows MVC (Model-View-Controller) pattern with React components serving as Views, controllers handling user interactions, and server-side services providing the Model layer.
+This technology stack uses standard technologies such as PostgreSQL, React, Node.js to make sure the data stays consistent across the full stack. The Groq LLM API (mocked in P4, live in P5) provides quality summarization without training custom models. The overall architecture follows MVC (Model-View-Controller) pattern with React components serving as Views, controllers handling user interactions, and server-side services providing the Model layer.
 
 ## 9. APIs & Public Interfaces
 

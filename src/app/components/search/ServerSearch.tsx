@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useApp } from '../../context/AppContext';
+import { apiService } from '../../services/apiService';
 import { Search, X } from 'lucide-react';
 import { Input } from '../ui/input';
 import { ScrollArea } from '../ui/scroll-area';
@@ -10,44 +11,94 @@ interface ServerSearchProps {
 }
 
 export const ServerSearch: React.FC<ServerSearchProps> = ({ searchQuery, onSearchChange }) => {
-  const { servers, currentUser, setSelectedServer, setSelectedChannel, setSelectedDM } = useApp();
+  const { servers, setSelectedServer, setSelectedChannel, setSelectedDM } = useApp();
+  const [results, setResults] = useState<any[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const userServers = servers.filter((s) => s.members.includes(currentUser?.id || ''));
+  useEffect(() => {
+    if (!searchQuery.trim()) {
+      setResults([]);
+      return;
+    }
 
-  const filteredServers = userServers.filter((server) =>
-    server.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+
+    debounceRef.current = setTimeout(async () => {
+      setIsSearching(true);
+      try {
+        const backendResults = await apiService.searchServers(searchQuery);
+        setResults(backendResults);
+      } catch (err) {
+        console.error('Server search failed, falling back to local filter:', err);
+        const local = servers.filter((s) =>
+          s.name.toLowerCase().includes(searchQuery.toLowerCase())
+        );
+        setResults(
+          local.map((s) => ({
+            id: s.id,
+            name: s.name,
+            icon: s.icon,
+            member_count: s.members.length,
+          }))
+        );
+      } finally {
+        setIsSearching(false);
+      }
+    }, 300);
+
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, [searchQuery, servers]);
 
   if (!searchQuery) return null;
+
+  const handleSelect = (server: any) => {
+    const fullServer = servers.find((s) => s.id === server.id);
+    if (fullServer) {
+      setSelectedServer(fullServer);
+    } else {
+      setSelectedServer({
+        id: server.id,
+        name: server.name,
+        icon: server.icon || '📁',
+        ownerId: server.owner_id || '',
+        members: [],
+      });
+    }
+    setSelectedChannel(null);
+    setSelectedDM(null);
+    onSearchChange('');
+  };
 
   return (
     <div className="absolute top-14 left-2 right-2 bg-[#0a1628] border border-[#1e3248] rounded-xl shadow-2xl z-50 max-h-96 overflow-hidden">
       <ScrollArea className="max-h-96">
         <div className="p-2">
-          {filteredServers.length === 0 ? (
+          {isSearching ? (
+            <div className="text-center text-[#475569] py-4 text-sm">Searching…</div>
+          ) : results.length === 0 ? (
             <div className="text-center text-[#475569] py-4 text-sm">No spaces found</div>
           ) : (
             <div className="space-y-0.5">
               <div className="text-xs text-[#475569] uppercase font-semibold tracking-wider px-2 py-1">
-                Spaces — {filteredServers.length}
+                Spaces — {results.length}
               </div>
-              {filteredServers.map((server) => (
+              {results.map((server) => (
                 <button
                   key={server.id}
-                  onClick={() => {
-                    setSelectedServer(server);
-                    setSelectedChannel(null);
-                    setSelectedDM(null);
-                    onSearchChange('');
-                  }}
+                  onClick={() => handleSelect(server)}
                   className="w-full flex items-center gap-3 px-2 py-2 rounded-lg hover:bg-[#1a2d45] text-left transition-colors"
                 >
                   <div className="size-10 rounded-xl bg-[#060c18] border border-[#1e3248] flex items-center justify-center text-lg">
-                    {server.icon}
+                    {server.icon || '📁'}
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="text-[#e2e8f0] text-sm font-medium truncate">{server.name}</div>
-                    <div className="text-[#475569] text-xs">{server.members.length} people</div>
+                    <div className="text-[#475569] text-xs">
+                      {server.member_count ?? server.members?.length ?? 0} people
+                    </div>
                   </div>
                 </button>
               ))}

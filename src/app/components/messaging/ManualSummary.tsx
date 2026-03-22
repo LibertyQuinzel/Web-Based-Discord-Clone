@@ -1,11 +1,14 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { useApp } from '../../context/AppContext';
+import { apiService } from '../../services/apiService';
 import { Sparkles, X, Clock, MessageSquare, TrendingUp, Users, AlertCircle } from 'lucide-react';
 import { Message } from '../../types';
 
 interface ManualSummaryProps {
   messages: Message[];
+  channelId?: string;
+  dmId?: string;
   onClose: () => void;
 }
 
@@ -32,99 +35,8 @@ const PRESETS = [
 const FOCUSABLE =
   'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
-// ─── Summary generation ────────────────────────────────────────────────────────
-const generateManualSummary = (
-  messages: Message[],
-  users: any[],
-  startDate: Date,
-  endDate: Date
-): SummaryData => {
-  const relevantMessages = messages.filter(m => {
-    const t = new Date(m.timestamp);
-    return t >= startDate && t <= endDate;
-  });
-
-  const fmtDate = (d: Date) =>
-    d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-  const fmtTime = (d: Date) =>
-    d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
-  const timeframeLabel = `${fmtDate(startDate)} ${fmtTime(startDate)} – ${fmtDate(endDate)} ${fmtTime(endDate)}`;
-
-  if (relevantMessages.length === 0) {
-    return {
-      overview: 'No messages found in this time range.',
-      keyTopics: [], mostActiveUsers: [], importantMessages: [],
-      timeframe: timeframeLabel,
-      stats: { totalMessages: 0, uniqueUsers: 0, questionsAsked: 0, decisionsMarked: 0 },
-    };
-  }
-
-  const userMap = new Map(users.map(u => [u.id, u.username]));
-  const uniqueUsers = new Set(relevantMessages.map(m => m.authorId));
-  const channelId = relevantMessages[0]?.channelId;
-  const dmId = relevantMessages[0]?.dmId;
-
-  const userMessageCounts = new Map<string, number>();
-  relevantMessages.forEach(m =>
-    userMessageCounts.set(m.authorId, (userMessageCounts.get(m.authorId) || 0) + 1)
-  );
-
-  const mostActiveUsers = Array.from(userMessageCounts.entries())
-    .map(([userId, count]) => ({ username: userMap.get(userId) || 'Unknown', count }))
-    .sort((a, b) => b.count - a.count)
-    .slice(0, 5);
-
-  const importantMessages = relevantMessages
-    .filter(m => {
-      const c = m.content.toLowerCase();
-      return (
-        c.includes('important') || c.includes('urgent') ||
-        c.includes('📢') || c.includes('🎯') ||
-        c.includes('bug') || c.includes('ready for review')
-      );
-    })
-    .slice(0, 5);
-
-  let overview = '', keyTopics: string[] = [], questionsAsked = 0, decisionsMarked = 0;
-
-  if (channelId === 'c1') {
-    overview = "Nafisa is working on the user system including registration, login, and profiles. Ashraf is handling servers with creating, deleting, and settings functionality. James is working on text channels with permissions. Elvis and Salma are working on messaging features including real-time chat, timestamps, edit/delete, and emoji support. Salma confirmed the emoji picker is working great. Ashraf asked about scheduling a meeting tomorrow to discuss the deadline. Nafisa agreed and will prepare the agenda for a 10 AM meeting.";
-    keyTopics = ["user system", "servers", "text channels", "messaging features", "emoji picker", "meeting planning"];
-    questionsAsked = 2; decisionsMarked = 1;
-  } else if (channelId === 'c2') {
-    overview = "Nafisa posted an important announcement requesting the team to review the project roadmap in the development channel. Ashraf shared a milestone update celebrating that the team has completed 60% of the core features.";
-    keyTopics = ["project roadmap", "milestone update", "core features"];
-  } else if (channelId === 'c3') {
-    overview = "Nafisa just pushed the new authentication flow and is requesting the team to test it. Ashraf found a bug in the server settings modal and is working on a fix. James completed the channel permissions system and it's ready for review.";
-    keyTopics = ["authentication flow", "server settings bug", "channel permissions system"];
-  } else if (channelId === 'c4') {
-    overview = "The team discussed upcoming gaming sessions and shared screenshots from recent matches.";
-    keyTopics = ["gaming sessions", "screenshots"];
-  } else if (channelId === 'c5') {
-    overview = "Plans for game night were finalized. The group will meet Friday at 8 PM for co-op gameplay.";
-    keyTopics = ["game night", "co-op plans"]; decisionsMarked = 1;
-  } else if (channelId === 'c6') {
-    overview = "Study schedules were shared and the group coordinated library meeting times.";
-    keyTopics = ["study schedules", "library coordination"];
-  } else if (channelId === 'c7') {
-    overview = "Several homework questions were posted and members helped each other with problem sets.";
-    keyTopics = ["homework help", "problem sets"];
-  } else if (dmId === 'dm1') {
-    overview = "Ashraf suggested grabbing coffee after the meeting. You agreed to meet at the place downtown at 2 PM.";
-    keyTopics = ["coffee meetup", "social plans"]; questionsAsked = 1; decisionsMarked = 1;
-  } else {
-    overview = `Conversation between ${uniqueUsers.size} participant${uniqueUsers.size !== 1 ? 's' : ''} with ${relevantMessages.length} message${relevantMessages.length !== 1 ? 's' : ''} exchanged.`;
-    keyTopics = ["general discussion"];
-  }
-
-  return {
-    overview, keyTopics, mostActiveUsers, importantMessages, timeframe: timeframeLabel,
-    stats: { totalMessages: relevantMessages.length, uniqueUsers: uniqueUsers.size, questionsAsked, decisionsMarked },
-  };
-};
-
 // ─── Component ────────────────────────────────────────────────────────────────
-export const ManualSummary: React.FC<ManualSummaryProps> = ({ messages, onClose }) => {
+export const ManualSummary: React.FC<ManualSummaryProps> = ({ messages, channelId, dmId, onClose }) => {
   const { users } = useApp();
 
   const [selectedHours, setSelectedHours] = useState<0.5 | 1 | 3>(3);
@@ -193,22 +105,30 @@ export const ManualSummary: React.FC<ManualSummaryProps> = ({ messages, onClose 
   }, [onClose]);
 
   // ── Generation ────────────────────────────────────────────────────────────
-  const generate = useCallback((hours: number) => {
+  const generate = useCallback(async (hours: number) => {
     setIsGenerating(true);
     setAnnouncement('Generating summary…');
-    const now   = new Date();
-    const start = new Date(now.getTime() - hours * 60 * 60 * 1000);
-    setTimeout(() => {
-      const data = generateManualSummary(messages, users, start, now);
-      setSummaryData(data);
-      setIsGenerating(false);
+
+    try {
+      const data = await apiService.getManualSummary({
+        channelId: channelId || undefined,
+        dmId: dmId || undefined,
+        hours,
+      });
+
+      setSummaryData(data as SummaryData);
       setAnnouncement(
         data.stats.totalMessages === 0
           ? 'No messages found in this time range.'
           : `Summary ready. ${data.stats.totalMessages} message${data.stats.totalMessages !== 1 ? 's' : ''} found.`
       );
-    }, 650);
-  }, [messages, users]);
+    } catch (err) {
+      console.error('Summary generation failed:', err);
+      setAnnouncement('Failed to generate summary. Please try again.');
+    } finally {
+      setIsGenerating(false);
+    }
+  }, [channelId, dmId]);
 
   useEffect(() => { generate(3); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 

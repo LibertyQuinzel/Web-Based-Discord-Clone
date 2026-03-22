@@ -1,7 +1,32 @@
 stateDiagram-v2
-    [*] --> COMPACT
-    COMPACT --> EXPANDED: onExpand
-    EXPANDED --> COMPACT: onExpand
-    COMPACT --> DISMISSED: onDismiss
-    EXPANDED --> DISMISSED: onDismiss
-    DISMISSED --> [*]
+    %% What You Missed Preview (US2) - State Diagram
+
+    [*] --> HIDDEN : channel opened, no unread
+
+    [*] --> COMPACT : channel opened, unread > 0
+
+    COMPACT --> LOADING : user clicks expand
+    LOADING --> EXPANDED : preview fetched from backend
+    LOADING --> ERROR : API error
+    ERROR --> LOADING : retry
+    EXPANDED --> COMPACT : user collapses
+
+    COMPACT --> DISMISSED : user dismisses
+    EXPANDED --> DISMISSED : user dismisses
+
+    DISMISSED --> [*] : markChannelAsRead()
+
+    note right of COMPACT
+        Shows unread count badge
+        No backend call yet
+    end note
+
+    note right of LOADING
+        GET /api/summaries/preview
+        Spinner displayed
+    end note
+
+    note right of EXPANDED
+        Displays one-line preview
+        from SummarizationProvider
+    end note

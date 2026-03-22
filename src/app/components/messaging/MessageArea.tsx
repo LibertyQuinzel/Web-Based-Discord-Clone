@@ -203,6 +203,8 @@ export const MessageArea: React.FC = () => {
       {showManualSummary && (
         <ManualSummary
           messages={channelMessages}
+          channelId={selectedChannel?.id}
+          dmId={selectedDM?.id}
           onClose={() => setShowManualSummary(false)}
         />
       )}
