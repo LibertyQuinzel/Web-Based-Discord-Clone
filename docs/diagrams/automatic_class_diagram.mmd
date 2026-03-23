@@ -1,29 +1,64 @@
 classDiagram
+    %% What You Missed Preview (US2) - Full-Stack Class Diagram
+
     class WhatYouMissed {
-        +unreadMessages: Message[]
-        +onDismiss: () => void
-        +onJumpToUnread?: () => void
-        +channelId?: string
-        +dmId?: string
-        +isExpanded: boolean
-        +generateAutomaticSummary()
-        +getHardcodedSummary()
-        +formatTimestamp()
+        +Message[] unreadMessages
+        +Function onDismiss
+        +Function onJumpToUnread
+        +String channelId
+        +String dmId
+        +Boolean isExpanded
+        +String previewText
+        +toggleExpand()
+        +dismiss()
+    }
+
+    class AppContext {
+        +Message[] messages
+        +User[] users
+        +Object lastReadMessages
+        +getUnreadMessages(channelId, dmId) Message[]
+        +getUnreadCount(channelId, dmId) Number
+        +markChannelAsRead(channelId)
+    }
+
+    class apiService {
+        +getPreview(channelId, dmId, since) Promise~PreviewData~
+    }
+
+    class SummaryService {
+        +generatePreview(options) Promise~PreviewData~
+        -_fetchMessages(options) Promise~FetchResult~
+    }
+
+    class SummarizationProvider {
+        +preview(messages, authorMap) Promise~string~
+        -_topAuthors(messages, authorMap) string[]
     }
 
     class Message {
-        +id: string
-        +content: string
-        +authorId: string
-        +timestamp: Date
+        +String id
+        +String content
+        +String author_id
+        +Timestamp timestamp
     }
 
     class User {
-        +id: string
-        +username: string
-        +displayName: string
-        +avatar: string
+        +String id
+        +String username
+        +String display_name
     }
 
-    WhatYouMissed --> Message
-    WhatYouMissed --> User
+    %% Frontend relationships
+    WhatYouMissed --> AppContext : reads unread messages
+    AppContext --> Message : manages
+    AppContext --> User : manages
+
+    %% API boundary
+    WhatYouMissed ..> apiService : fetches preview
+    apiService ..> SummaryService : HTTP GET
+
+    %% Backend relationships
+    SummaryService --> SummarizationProvider : delegates
+    SummaryService ..> Message : queries PostgreSQL
+    Message --> User : author_id FK

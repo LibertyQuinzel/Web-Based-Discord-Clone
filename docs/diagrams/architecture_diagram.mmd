@@ -1,50 +1,42 @@
 graph TB
-    %% Manual Summary - Architecture Diagram
-    %% MVC Architecture Pattern
+    %% Manual Summary (US1) - Full-Stack Architecture Diagram
 
-    subgraph "Client Side (View + Controller)"
-        A[Frontend<br/>React]
-        B[ManualSummary<br/>MS1.1]
-        C[ManualSummaryButtonView<br/>MS1.2]
-        D[ChatChannelController<br/>MS1.3]
+    subgraph "Frontend (React)"
+        A[MessageArea Component]
+        B[ManualSummary Component<br/>Modal · Time Presets · Display]
+        C[apiService.generateManualSummary]
     end
 
-    subgraph "Server Side (Model)"
-        E[Backend Services<br/>Node.js]
-        F[MessageRepository<br/>MS2.1]
-        G[SummaryService<br/>MS2.2]
-        H[API Layer<br/>REST/GraphQL]
+    subgraph "Backend (Express.js)"
+        D[POST /api/summaries/manual<br/>Summary Route]
+        E[Auth Middleware<br/>JWT Verification]
+        F[Channel.hasAccess / DM Check<br/>Access Control]
+        G[SummaryService.generateManualSummary<br/>Orchestration]
+        H[SummarizationProvider.summarize<br/>Mocked LLM]
     end
 
-    subgraph "External (Data)"
-        I[Database<br/>PostgreSQL]
-        J[LLM API<br/>OpenAI]
-        K[Authentication<br/>Service]
+    subgraph "Data Layer"
+        I[(PostgreSQL<br/>messages · users)]
     end
 
-    %% MVC Data Flow
-    A --> B
-    A --> C
-    A --> D
-    B --> D
-    C --> D
+    %% Flow
+    A -->|user clicks Generate Summary| B
+    B -->|POST with channelId, hours| C
+    C -->|HTTP| D
     D --> E
-    D --> F
-    D --> G
-    F --> H
-    H --> F
+    E --> F
     F --> G
-    G --> I
-    F --> I
-    G --> J
-    J --> K
+    G -->|fetch messages since timestamp| I
+    G -->|messages + authorMap| H
+    H -->|overview, keyTopics, stats| G
+    G -->|SummaryData| D
+    D -->|JSON response| C
+    C -->|summaryData| B
 
-    %% Styling
-    classDef clientClass fill:#e3f2fd,stroke:#1a73e8,stroke-width:3px
-    classDef serverClass fill:#e8f5e8,stroke:#34a853,stroke-width:3px
-    classDef externalClass fill:#ffebee,stroke:#ea4335,stroke-width:3px
-    classDef componentClass fill:#ffffff,stroke:#666666,stroke-width:2px
-    class A,B,C,D clientClass
-    class E,F,G,H serverClass
-    class I,J,K externalClass
-    class B,C componentClass
+    classDef frontend fill:#e3f2fd,stroke:#1a73e8,stroke-width:2px
+    classDef backend fill:#e8f5e9,stroke:#34a853,stroke-width:2px
+    classDef data fill:#fff3e0,stroke:#e65100,stroke-width:2px
+
+    class A,B,C frontend
+    class D,E,F,G,H backend
+    class I data

@@ -1,32 +1,50 @@
 graph TB
-    %% What You Missed Summary (WYMS) - Architecture Diagram
-    %% MVC Architecture Pattern
+    %% What You Missed Preview (US2) - Full-Stack Architecture
 
-    subgraph "Client Side (View)"
-        A[Frontend<br/>React]
-        B[WhatYouMissed<br/>WYMS1.1<br/>Summary Bar + Expand Button]
-        C[WhatYouMissed<br/>WYMS1.2<br/>Expanded Summary Display]
+    subgraph "View Layer (React)"
+        V1[WhatYouMissed Bar<br/>Compact · Expanded · Dismissable]
+        V2[MessageArea<br/>Renders WhatYouMissed when unread > 0]
     end
 
-    subgraph "Client Side (Controller)"
-        D[User Interactions<br/>Event Handlers<br/>- onExpand<br/>- onDismiss<br/>- onJumpToUnread]
+    subgraph "Controller Layer (Frontend)"
+        C1[AppContext.getUnreadMessages<br/>Determines unread pool]
+        C2[onDismiss / onExpand<br/>Component state handlers]
     end
 
-    subgraph "Client Side (Model)"
-        E[AppContext<br/>State Management]
-        F[Message Data<br/>unreadMessages]
-        G[User Data<br/>users]
-        H[Summary State<br/>isExpanded]
+    subgraph "API Layer (apiService.ts)"
+        API[apiService.getPreview<br/>GET /api/summaries/preview]
     end
 
-    %% MVC Data Flow
-    A --> B
-    A --> C
-    B --> D
-    C --> D
-    D --> E
-    D --> H
-    E --> F
-    E --> G
-    H --> E
-    E --> A
+    subgraph "Backend Controller (Express Routes)"
+        RC[summary.js route handler<br/>Auth · Validation · Access Control]
+    end
+
+    subgraph "Backend Model (Services + DB)"
+        SVC[SummaryService.generatePreview<br/>Fetch unread · Build preview]
+        LLM[SummarizationProvider.preview<br/>One-line summary generation]
+        DB[(PostgreSQL<br/>messages · users)]
+    end
+
+    V2 --> V1
+    V1 --> C1
+    V1 --> C2
+    C1 --> API
+    API -->|HTTP GET| RC
+    RC --> SVC
+    SVC --> LLM
+    SVC --> DB
+    SVC -->|PreviewData| RC
+    RC -->|JSON| API
+    API -->|preview| V1
+
+    classDef view fill:#e3f2fd,stroke:#1a73e8,stroke-width:2px
+    classDef controller fill:#e8f5e9,stroke:#34a853,stroke-width:2px
+    classDef api fill:#f3e5f5,stroke:#4a148c,stroke-width:2px
+    classDef backend fill:#fff3e0,stroke:#e65100,stroke-width:2px
+    classDef model fill:#fce4ec,stroke:#880e4f,stroke-width:2px
+
+    class V1,V2 view
+    class C1,C2 controller
+    class API api
+    class RC backend
+    class SVC,LLM,DB model

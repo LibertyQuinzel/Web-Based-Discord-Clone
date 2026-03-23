@@ -1,81 +1,96 @@
 graph TB
     subgraph "Client Layer"
-        WEB[React Frontend<br/>React 18 + TypeScript]
-        MOBILE[Mobile App<br/>Future - React Native]
+        WEB[React Frontend<br/>React 18 + TypeScript + Vite]
     end
-    
-    subgraph "API Gateway Layer"
-        GATEWAY[API Gateway<br/>Express.js + JWT]
-        AUTH[Authentication Service<br/>JWT Validation]
-        RATE[Rate Limiting<br/>Redis-based]
+
+    subgraph "API Gateway"
+        GATEWAY[Express.js Server<br/>CORS · JSON · Static]
+        AUTH_MW[Auth Middleware<br/>JWT Verification]
+        VALID[Joi Validation<br/>Request Schemas]
     end
-    
-    subgraph "Core Services"
-        USER[User Service<br/>Auth + Profiles]
-        SERVER[Server Service<br/>Server Management]
-        CHANNEL[Channel Service<br/>Channel Operations]
-        MESSAGE[Message Service<br/>Message Storage]
-        SEARCH[Search Service<br/>Full-text Search]
+
+    subgraph "Core Modules"
+        AUTH_SVC[Auth Routes<br/>Register · Login · Me]
+        USER_SVC[User Routes<br/>Search · Profile · Status]
+        SERVER_SVC[Server Routes<br/>CRUD · Members · Search]
+        CHANNEL_SVC[Channel Routes<br/>CRUD · Access Control]
+        MSG_SVC[Message Routes<br/>CRUD · Reactions]
+        DM_SVC[DM Routes<br/>List · Create]
     end
-    
-    subgraph "Feature Services"
-        SUMMARY[Summary Service<br/>Manual Summaries]
-        PREVIEW[Preview Service<br/>Auto Previews]
-        NOTIFICATION[Notification Service<br/>Real-time Updates]
+
+    subgraph "Feature Modules"
+        SUMMARY_SVC[Summary Routes<br/>Manual Summary · Preview]
+        FRIEND_SVC[Friend Routes<br/>Requests · Accept · Reject]
+        INVITE_SVC[Invite Routes<br/>Send · Accept · Decline]
     end
-    
+
+    subgraph "Services"
+        SUMMARY_LOGIC[SummaryService<br/>Message Fetching · Assembly]
+        LLM_MOCK[SummarizationProvider<br/>Mocked LLM · Groq in P5]
+        USER_LOGIC[UserService<br/>Auth Logic · Token Gen]
+        SEED[SeedData<br/>Demo Data Initialisation]
+    end
+
+    subgraph "Data Layer"
+        USER_MODEL[User Model]
+        SERVER_MODEL[Server Model]
+        CHANNEL_MODEL[Channel Model]
+        MSG_MODEL[Message Model]
+    end
+
     subgraph "Infrastructure"
-        DB[(PostgreSQL<br/>Primary + Replica)]
-        CACHE[(Redis Cluster<br/>Multi-layer Caching)]
-        QUEUE[Message Queue<br/>Bull Queue]
-        LLM[LLM Provider<br/>OpenAI API]
+        DB[(PostgreSQL 15<br/>Single Instance<br/>9 Tables · Indexes)]
     end
-    
-    %% Client connections
-    WEB --> GATEWAY
-    MOBILE --> GATEWAY
-    
-    %% Gateway internal routing
-    GATEWAY --> AUTH
-    GATEWAY --> RATE
-    
-    %% Service routing
-    AUTH --> USER
-    GATEWAY --> USER
-    GATEWAY --> SERVER
-    GATEWAY --> CHANNEL
-    GATEWAY --> MESSAGE
-    GATEWAY --> SEARCH
-    
-    %% Feature service dependencies
-    SUMMARY --> MESSAGE
-    SUMMARY --> LLM
-    PREVIEW --> MESSAGE
-    PREVIEW --> SUMMARY
-    
-    %% Database connections
-    USER --> DB
-    SERVER --> DB
-    CHANNEL --> DB
-    MESSAGE --> DB
-    
-    %% Cache connections
-    SEARCH --> CACHE
-    SUMMARY --> CACHE
-    PREVIEW --> CACHE
-    
-    %% Queue connections
-    NOTIFICATION --> QUEUE
-    
+
+    %% Client to Gateway
+    WEB -->|HTTP REST| GATEWAY
+    GATEWAY --> AUTH_MW
+    GATEWAY --> VALID
+
+    %% Gateway to Core
+    AUTH_MW --> AUTH_SVC
+    AUTH_MW --> USER_SVC
+    AUTH_MW --> SERVER_SVC
+    AUTH_MW --> CHANNEL_SVC
+    AUTH_MW --> MSG_SVC
+    AUTH_MW --> DM_SVC
+
+    %% Gateway to Features
+    AUTH_MW --> SUMMARY_SVC
+    AUTH_MW --> FRIEND_SVC
+    AUTH_MW --> INVITE_SVC
+
+    %% Feature dependencies
+    SUMMARY_SVC --> SUMMARY_LOGIC
+    SUMMARY_LOGIC --> LLM_MOCK
+    AUTH_SVC --> USER_LOGIC
+
+    %% Routes to Models
+    USER_SVC --> USER_MODEL
+    SERVER_SVC --> SERVER_MODEL
+    CHANNEL_SVC --> CHANNEL_MODEL
+    MSG_SVC --> MSG_MODEL
+
+    %% Models to DB
+    USER_MODEL --> DB
+    SERVER_MODEL --> DB
+    CHANNEL_MODEL --> DB
+    MSG_MODEL --> DB
+    SUMMARY_LOGIC --> DB
+
     %% Styling
     classDef client fill:#e1f5fe,stroke:#01579b,stroke-width:2px
     classDef gateway fill:#f3e5f5,stroke:#4a148c,stroke-width:2px
-    classDef core fill:#e8f5e8,stroke:#1b5e20,stroke-width:2px
+    classDef core fill:#e8f5e9,stroke:#1b5e20,stroke-width:2px
     classDef feature fill:#fff3e0,stroke:#e65100,stroke-width:2px
-    classDef infra fill:#fce4ec,stroke:#880e4f,stroke-width:2px
-    
-    class WEB,MOBILE client
-    class GATEWAY,AUTH,RATE gateway
-    class USER,SERVER,CHANNEL,MESSAGE,SEARCH core
-    class SUMMARY,PREVIEW,NOTIFICATION feature
-    class DB,CACHE,QUEUE,LLM infra
+    classDef service fill:#fce4ec,stroke:#880e4f,stroke-width:2px
+    classDef model fill:#e0f2f1,stroke:#004d40,stroke-width:2px
+    classDef infra fill:#efebe9,stroke:#3e2723,stroke-width:2px
+
+    class WEB client
+    class GATEWAY,AUTH_MW,VALID gateway
+    class AUTH_SVC,USER_SVC,SERVER_SVC,CHANNEL_SVC,MSG_SVC,DM_SVC core
+    class SUMMARY_SVC,FRIEND_SVC,INVITE_SVC feature
+    class SUMMARY_LOGIC,LLM_MOCK,USER_LOGIC,SEED service
+    class USER_MODEL,SERVER_MODEL,CHANNEL_MODEL,MSG_MODEL model
+    class DB infra

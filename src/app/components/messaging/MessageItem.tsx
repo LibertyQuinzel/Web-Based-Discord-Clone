@@ -34,7 +34,10 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message, onScrollToMes
   const repliedAuthor = repliedMessage ? users.find(u => u.id === repliedMessage.authorId) : null;
 
   const serverInvite = message.serverInviteId ? serverInvites.find(si => si.id === message.serverInviteId) : null;
-  const invitedServer = serverInvite ? servers.find(s => s.id === serverInvite.serverId) : null;
+  const invitedServer = serverInvite
+    ? servers.find(s => s.id === serverInvite.serverId) ||
+      (serverInvite.serverName ? { id: serverInvite.serverId, name: serverInvite.serverName, icon: serverInvite.serverIcon || '📁', ownerId: '', members: [] } : null)
+    : null;
   const isInviteRecipient = serverInvite && currentUser && serverInvite.toUserId === currentUser.id;
 
   const authorDisplayName = author?.displayName || author?.username;

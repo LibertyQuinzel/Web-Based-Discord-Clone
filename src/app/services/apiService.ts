@@ -318,6 +318,145 @@ class ApiService {
     });
     return response.data?.directMessage;
   }
+
+  // Summary endpoints
+
+  async getManualSummary(payload: {
+    channelId?: string;
+    dmId?: string;
+    hours?: number;
+    maxMessages?: number;
+  }): Promise<any> {
+    const response = await this.request<{ summary: any }>('/api/summaries/manual', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+    return response.data?.summary;
+  }
+
+  async getPreviewSummary(params: {
+    channelId?: string;
+    dmId?: string;
+    since?: string;
+  }): Promise<any> {
+    const qs = new URLSearchParams();
+    if (params.channelId) qs.set('channelId', params.channelId);
+    if (params.dmId) qs.set('dmId', params.dmId);
+    if (params.since) qs.set('since', params.since);
+
+    const response = await this.request<{ preview: any }>(
+      `/api/summaries/preview?${qs.toString()}`
+    );
+    return response.data?.preview;
+  }
+
+  // User endpoints
+
+  async searchUsers(query: string, limit?: number): Promise<any[]> {
+    const qs = new URLSearchParams({ q: query });
+    if (limit) qs.set('limit', String(limit));
+    const response = await this.request<{ users: any[] }>(`/api/users/search?${qs.toString()}`);
+    return response.data?.users || [];
+  }
+
+  async getUserProfile(): Promise<any> {
+    const response = await this.request<{ user: any }>('/api/users/me');
+    return response.data?.user;
+  }
+
+  async updateProfile(updates: { displayName?: string; avatar?: string }): Promise<any> {
+    const response = await this.request<{ user: any }>('/api/users/me/profile', {
+      method: 'PUT',
+      body: JSON.stringify(updates),
+    });
+    return response.data?.user;
+  }
+
+  async updateStatus(status: string): Promise<any> {
+    const response = await this.request<{ user: any }>('/api/users/me/status', {
+      method: 'PUT',
+      body: JSON.stringify({ status }),
+    });
+    return response.data?.user;
+  }
+
+  // Friend endpoints
+
+  async getFriends(): Promise<any[]> {
+    const response = await this.request<{ friends: any[] }>('/api/friends');
+    return response.data?.friends || [];
+  }
+
+  async getFriendRequests(): Promise<any[]> {
+    const response = await this.request<{ requests: any[] }>('/api/friends/requests');
+    return response.data?.requests || [];
+  }
+
+  async sendFriendRequest(toUserId: string): Promise<any> {
+    const response = await this.request<{ request: any }>('/api/friends/requests', {
+      method: 'POST',
+      body: JSON.stringify({ toUserId }),
+    });
+    return response.data?.request;
+  }
+
+  async acceptFriendRequest(requestId: string): Promise<any> {
+    const response = await this.request<{ request: any }>(
+      `/api/friends/requests/${requestId}/accept`,
+      { method: 'POST' }
+    );
+    return response.data?.request;
+  }
+
+  async rejectFriendRequest(requestId: string): Promise<any> {
+    const response = await this.request<{ request: any }>(
+      `/api/friends/requests/${requestId}/reject`,
+      { method: 'POST' }
+    );
+    return response.data?.request;
+  }
+
+  // Server invite endpoints
+
+  async getPendingInvites(): Promise<any[]> {
+    const response = await this.request<{ invites: any[] }>('/api/invites/pending');
+    return response.data?.invites || [];
+  }
+
+  async sendServerInvite(serverId: string, toUserId: string): Promise<any> {
+    const response = await this.request<{ invite: any }>('/api/invites', {
+      method: 'POST',
+      body: JSON.stringify({ serverId, toUserId }),
+    });
+    return response.data?.invite;
+  }
+
+  async acceptServerInvite(inviteId: string): Promise<void> {
+    await this.request(`/api/invites/${inviteId}/accept`, { method: 'POST' });
+  }
+
+  async declineServerInvite(inviteId: string): Promise<void> {
+    await this.request(`/api/invites/${inviteId}/decline`, { method: 'POST' });
+  }
+
+  // Server detail / members
+
+  async getServerDetails(serverId: string): Promise<any> {
+    const response = await this.request<{ server: any }>(`/api/servers/${serverId}`);
+    return response.data?.server;
+  }
+
+  // Server search endpoint
+
+  async searchServers(query: string, limit?: number): Promise<any[]> {
+    const qs = new URLSearchParams({ q: query });
+    if (limit) qs.set('limit', String(limit));
+
+    const response = await this.request<{ servers: any[] }>(
+      `/api/servers/search?${qs.toString()}`
+    );
+    return response.data?.servers || [];
+  }
 }
 
 export const apiService = new ApiService();

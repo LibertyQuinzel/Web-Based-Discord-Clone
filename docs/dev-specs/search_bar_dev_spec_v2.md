@@ -20,7 +20,7 @@
 
 ## 2. Architecture Diagram
 
-![Search Architecture Diagram](../diagrams/search_architecture_diagram.png)
+![Search Architecture Diagram](../diagrams/rendered/search_architecture_diagram.png)
 
 ### 2.2 Architecture Description
 
@@ -55,7 +55,7 @@ This architecture follows MVC (Model-View-Controller) pattern with React compone
 
 ## 3. Class Diagrams
 
-![Class Diagram](../diagrams/search_class_diagram.png)
+![Class Diagram](../diagrams/rendered/search_class_diagram.png)
 
 **Class: SB1.1 ServerSearchInput**
 * interacts with → Class: SB2.0 UserInteractions
@@ -119,7 +119,7 @@ Each class maps to a component in the MVC architecture. The View components hand
 
 ## 5. State Diagrams
 
-![State Diagram](../diagrams/search_state_diagram.png)
+![State Diagram](../diagrams/rendered/search_state_diagram.png)
 
 ## 6. Flow Charts (Scenario‑Based)
 

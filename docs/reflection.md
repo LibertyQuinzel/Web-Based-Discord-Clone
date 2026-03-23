@@ -1,0 +1,19 @@
+# P4 Reflection — Backend Development
+
+## How effective was the LLM in generating the backend code? What did you like about the result?
+
+The LLM was remarkably effective at generating the structural backbone of the backend. Given the existing frontend codebase, it produced a complete Express.js server with PostgreSQL integration, JWT authentication, Joi validation, and RESTful routes — all in a style that was immediately consistent with the frontend's expected data shapes. What I appreciated most was its ability to cross-reference the frontend's `AppContext.tsx`, `apiService.ts`, and TypeScript interfaces to generate backend endpoints whose response shapes matched what the frontend already consumed. This eliminated the tedious back-and-forth of aligning API contracts. The LLM also generated comprehensive seed data that told a realistic story (a team project conversation, gaming squad, study group) rather than placeholder gibberish, making manual testing feel natural.
+
+## What was wrong with what the LLM first generated? What were you able to fix easily? What problems were more difficult to fix?
+
+The most significant first-generation issue was a **race condition during Docker startup**. The LLM placed `initializeDemoAccounts()` as an auto-executing call on module import, which ran before `initializeDatabase()` had created the tables — resulting in "relation 'users' does not exist" errors. The fix was straightforward once diagnosed: export the function and call it explicitly after database initialisation. But diagnosing it required reading Docker logs carefully, understanding Node.js module evaluation order, and recognising that `require()` triggers side effects during import.
+
+A second class of problems was **stale test expectations against a persistent database**. The LLM's first test suite assumed a clean database state, but because Docker volumes persisted between runs, tests that created friend requests or accepted server invites would fail on re-run because the data already existed. Fixing this required a conceptual shift — making destructive tests register fresh users rather than reusing seed accounts — which the LLM handled well once I described the problem.
+
+Easier fixes included adjusting Joi validation constraints (the `alphanum()` rule rejected underscores in test usernames), widening time-window parameters in summary tests to account for seed data aging, and correcting response field paths (`stats.totalMessages` instead of `messageCount`). These were one-line changes guided by reading error output.
+
+The hardest problem was the **server invite rendering bug** where invite messages appeared as plain text instead of interactive cards. This crossed the frontend-backend boundary: the backend returned invites without `serverName` and `serverIcon`, the frontend couldn't construct a synthetic server object for servers the user hadn't joined yet, and the invite list was only fetched at login rather than when opening a DM. Solving this required coordinated changes across `types.ts`, `AppContext.tsx`, `MessageItem.tsx`, and `serverInvites.js` — four files spanning both codebases.
+
+## How did you convince yourself that the implementation was complete?
+
+I used a three-pronged approach. First, I walked through each user story's program path end-to-end: authentication → data access → feature logic → response. Second, I wrote 62 integration tests across 10 suites that exercise every API endpoint the user stories depend on, including happy paths, validation errors, access-control denials, and idempotency guarantees. All 62 tests pass inside the Docker container. Third, I performed a systematic compliance check against the assignment's deliverables list, which identified remaining documentation gaps (this reflection, the backend README, and per-module specs) that I then addressed. The LLM was instrumental in all three steps — generating tests, auditing compliance, and producing documentation.

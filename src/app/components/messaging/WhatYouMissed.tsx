@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
+import { apiService } from '../../services/apiService';
 import { Sparkles, ChevronDown, ChevronUp, X, ArrowDown } from 'lucide-react';
 import { Message } from '../../types';
 
@@ -10,57 +11,6 @@ interface WhatYouMissedProps {
   channelId?: string;
   dmId?: string;
 }
-
-const generateAutomaticSummary = (messages: Message[], users: any[]): string => {
-  if (messages.length === 0) return 'No recent messages.';
-  const userMessageCounts: Record<string, number> = {};
-  messages.forEach((msg) => {
-    userMessageCounts[msg.authorId] = (userMessageCounts[msg.authorId] || 0) + 1;
-  });
-  const sortedUsers = Object.entries(userMessageCounts)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 3);
-  const parts: string[] = [];
-  if (sortedUsers.length > 0) {
-    const activeUsers = sortedUsers.map(([userId, count]) => {
-      const user = users.find((u) => u.id === userId);
-      const displayName = user?.displayName || user?.username || 'Someone';
-      return `${displayName} (${count} ${count === 1 ? 'msg' : 'msgs'})`;
-    });
-    if (activeUsers.length === 1) parts.push(`${activeUsers[0]} shared updates`);
-    else if (activeUsers.length === 2) parts.push(`${activeUsers[0]} and ${activeUsers[1]} were active`);
-    else parts.push(`${activeUsers[0]}, ${activeUsers[1]}, and ${activeUsers[2]} were active`);
-  }
-  const mentionPattern = /@\w+/g;
-  let mentionCount = 0;
-  messages.forEach((msg) => {
-    const mentions = msg.content.match(mentionPattern);
-    if (mentions) mentionCount += mentions.length;
-  });
-  if (mentionCount > 0) parts.push(`${mentionCount} @mention${mentionCount === 1 ? '' : 's'}`);
-  let summary = parts.join(' · ');
-  return summary || `${messages.length} new ${messages.length === 1 ? 'message' : 'messages'}`;
-};
-
-const getHardcodedSummary = (channelId?: string, dmId?: string): string | null => {
-  if (channelId === 'c1')
-    return "James is working on text channels with permissions. Elvis and Salma are working on messaging with real-time chat, timestamps, and emojis. Salma mentioned the emoji picker is working great. Ashraf asked about having a meeting tomorrow to discuss the deadline. Nafisa will prepare the agenda for a 10 AM meeting.";
-  if (channelId === 'c2')
-    return "Nafisa posted an important announcement about reviewing the project roadmap. Ashraf shared a milestone update — the team has completed 60% of core features.";
-  if (channelId === 'c3')
-    return "Nafisa just pushed the new authentication flow and is requesting testing. Ashraf found a bug in the space settings modal. James completed the room permissions system and it's ready for review.";
-  if (channelId === 'c4')
-    return "The team discussed upcoming gaming sessions and shared screenshots from recent matches.";
-  if (channelId === 'c5')
-    return "Plans for game night were finalized. The group will meet Friday at 8 PM for co-op gameplay.";
-  if (channelId === 'c6')
-    return "Study schedules were shared and the group coordinated library meeting times.";
-  if (channelId === 'c7')
-    return "Several homework questions were posted and members helped each other with problem sets.";
-  if (dmId === 'dm1')
-    return "Ashraf suggested grabbing coffee after the meeting. You agreed to meet at the place downtown at 2 PM.";
-  return null;
-};
 
 const formatTimestamp = (date: Date) => {
   const now = new Date();
@@ -80,11 +30,51 @@ export const WhatYouMissed: React.FC<WhatYouMissedProps> = ({
   channelId,
   dmId,
 }) => {
-  const { users } = useApp();
+  const { users, lastReadMessages } = useApp();
   const [isExpanded, setIsExpanded] = useState(false);
+  const [summary, setSummary] = useState<string>('');
+  const [isLoading, setIsLoading] = useState(true);
 
-  const hardcodedSummary = getHardcodedSummary(channelId, dmId);
-  const summary = hardcodedSummary || generateAutomaticSummary(unreadMessages, users);
+  useEffect(() => {
+    let cancelled = false;
+
+    const fetchPreview = async () => {
+      setIsLoading(true);
+      try {
+        const sinceKey = channelId || dmId || '';
+        const since = lastReadMessages[sinceKey]
+          ? new Date(lastReadMessages[sinceKey]).toISOString()
+          : undefined;
+
+        const preview = await apiService.getPreviewSummary({
+          channelId: channelId || undefined,
+          dmId: dmId || undefined,
+          since,
+        });
+
+        if (!cancelled) {
+          setSummary(preview.summary || `${unreadMessages.length} new messages`);
+        }
+      } catch (err) {
+        console.error('Preview fetch failed, falling back to local count:', err);
+        if (!cancelled) {
+          setSummary(`${unreadMessages.length} new message${unreadMessages.length !== 1 ? 's' : ''}`);
+        }
+      } finally {
+        if (!cancelled) setIsLoading(false);
+      }
+    };
+
+    if (unreadMessages.length > 0 && (channelId || dmId)) {
+      fetchPreview();
+    } else {
+      setSummary('No recent messages.');
+      setIsLoading(false);
+    }
+
+    return () => { cancelled = true; };
+  }, [channelId, dmId, unreadMessages.length]);
+
   const lastReadTime = unreadMessages[0]?.timestamp;
 
   const authorIds = [...new Set(unreadMessages.map((m) => m.authorId))].slice(0, 4);
@@ -160,7 +150,11 @@ export const WhatYouMissed: React.FC<WhatYouMissedProps> = ({
       {/* ── Expanded summary ── */}
       {isExpanded && (
         <div id="wym-summary" className="px-4 pb-3 pt-0">
-          <p className="text-[#64748b] text-xs leading-relaxed">{summary}</p>
+          {isLoading ? (
+            <p className="text-[#475569] text-xs italic">Loading summary…</p>
+          ) : (
+            <p className="text-[#64748b] text-xs leading-relaxed">{summary}</p>
+          )}
 
           {/* Mark as read link */}
           <button

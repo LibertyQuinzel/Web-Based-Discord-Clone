@@ -59,7 +59,7 @@ As a user in many servers, I want a visible search bar to find servers by name s
 
 ### Architecture Diagram
 
-![Unified Backend Architecture](unified_backend_architecture.png)
+![Unified Backend Architecture](../diagrams/rendered/unified_architecture_diagram.png)
 
 ### Core Design Principles
 
@@ -129,7 +129,7 @@ All services are exposed through a single API endpoint structure:
 
 ### 5.1 Database Schema
 
-![Database Schema](database_schema.png)
+![Database Schema](../diagrams/rendered/database_schema.png)
 
 ### 5.2 Simple Caching Strategy
 

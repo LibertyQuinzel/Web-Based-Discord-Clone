@@ -1,0 +1,32 @@
+stateDiagram-v2
+    %% Server Search (US3) - State Diagram
+
+    [*] --> HIDDEN : initial state
+
+    HIDDEN --> VISIBLE_WITH_RESULTS : user types query, results found
+    HIDDEN --> VISIBLE_NO_RESULTS : user types query, no matches
+
+    VISIBLE_WITH_RESULTS --> VISIBLE_WITH_RESULTS : query changes, results found
+    VISIBLE_WITH_RESULTS --> VISIBLE_NO_RESULTS : query changes, no matches
+    VISIBLE_NO_RESULTS --> VISIBLE_WITH_RESULTS : query changes, results found
+    VISIBLE_NO_RESULTS --> VISIBLE_NO_RESULTS : query changes, no matches
+
+    VISIBLE_WITH_RESULTS --> HIDDEN : user selects server
+    VISIBLE_WITH_RESULTS --> HIDDEN : user clears search
+    VISIBLE_NO_RESULTS --> HIDDEN : user clears search
+
+    note right of HIDDEN
+        Search input empty
+        No dropdown visible
+    end note
+
+    note right of VISIBLE_WITH_RESULTS
+        GET /api/servers/search?q=...
+        Dropdown shows matching servers
+        with icons, names, member counts
+    end note
+
+    note right of VISIBLE_NO_RESULTS
+        Query returned empty array
+        Shows "No spaces found"
+    end note
